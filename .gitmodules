@@ -1,0 +1,6 @@
+[submodule "python-server"]
+	path = python-server
+	url = https://github.com/davidkambala/socketcommunicationPython
+[submodule "cpp-client"]
+	path = cpp-client
+	url = https://github.com/davidkambala/Scoketcommunication
