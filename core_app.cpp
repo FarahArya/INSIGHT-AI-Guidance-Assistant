@@ -9,14 +9,13 @@
 
 using json = nlohmann::json;
 
-// Replace with your actual input size expected by ONNX model
 constexpr int INPUT_WIDTH = 640;
 constexpr int INPUT_HEIGHT = 640;
 
-// Preprocess frame to tensor (NCHW, normalized RGB)
 std::vector<float> preprocessFrame(const cv::Mat &frame)
 {
     cv::Mat resized, rgb, float_img;
+    std::cout << "[INFO] Preprocessing frame..." << std::endl;
     cv::resize(frame, resized, cv::Size(INPUT_WIDTH, INPUT_HEIGHT));
     cv::cvtColor(resized, rgb, cv::COLOR_BGR2RGB);
     rgb.convertTo(float_img, CV_32FC3, 1.0 / 255.0);
@@ -32,37 +31,45 @@ std::vector<float> preprocessFrame(const cv::Mat &frame)
 
 int main()
 {
+    std::cout << "[INFO] Starting AI Guidance Assistant..." << std::endl;
+
     // Initialize camera
     cv::VideoCapture cap(0);
     if (!cap.isOpened())
     {
-        std::cerr << "❌ Failed to open camera." << std::endl;
+        std::cerr << "[ERROR] Could not open camera." << std::endl;
         return 1;
     }
+    std::cout << "[INFO] Camera opened successfully." << std::endl;
 
     // Load ONNX model
-    Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "Model");
+    Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "InsightAI");
     Ort::SessionOptions session_options;
     session_options.SetIntraOpNumThreads(1);
-    Ort::Session session(env, "yolo11n.onnx", session_options);
+    Ort::Session session(env, "model.onnx", session_options);
     Ort::AllocatorWithDefaultOptions allocator;
 
-    // const char *input_name = session.GetInputName(0, allocator);
-    // const char *output_name = session.GetOutputName(0, allocator);
     Ort::AllocatedStringPtr input_name_ptr = session.GetInputNameAllocated(0, allocator);
     const char *input_name = input_name_ptr.get();
-
     Ort::AllocatedStringPtr output_name_ptr = session.GetOutputNameAllocated(0, allocator);
     const char *output_name = output_name_ptr.get();
 
+    std::cout << "[INFO] ONNX model loaded successfully." << std::endl;
+
     while (true)
     {
+        std::cout << "------------------------------------------" << std::endl;
+        std::cout << "[INFO] Capturing frame..." << std::endl;
+
         cv::Mat frame;
         cap >> frame;
         if (frame.empty())
+        {
+            std::cerr << "[WARN] Frame capture failed. Skipping..." << std::endl;
             continue;
+        }
+        std::cout << "[INFO] Frame captured." << std::endl;
 
-        // Preprocess frame
         std::vector<float> input_tensor_values = preprocessFrame(frame);
         std::vector<int64_t> input_dims = {1, 3, INPUT_HEIGHT, INPUT_WIDTH};
 
@@ -73,27 +80,26 @@ int main()
             mem_info, input_tensor_values.data(), input_tensor_values.size(),
             input_dims.data(), input_dims.size());
 
-        // Run inference
+        std::cout << "[INFO] Running model inference..." << std::endl;
         auto output_tensors = session.Run(
             Ort::RunOptions{nullptr}, &input_name, &input_tensor, 1,
             &output_name, 1);
+        std::cout << "[INFO] Inference complete." << std::endl;
 
         float *output = output_tensors[0].GetTensorMutableData<float>();
 
-        // [⚠️ Replace this dummy logic with real result interpretation]
+        // ⚠️ Replace with real parsing of model output
         std::string label = "object";
         int distance = 2;
 
-        // Create TTS text
         json j;
         j["text"] = "There is a " + label + " approximately " + std::to_string(distance) + " metres ahead.";
-
-        // Save to temp file
         std::ofstream out("say.json");
         out << j.dump() << std::endl;
         out.close();
 
-        // Call Piper CLI
+        std::cout << "[INFO] Sending text to Piper: " << j["text"] << std::endl;
+
         std::string cmd = "cat say.json | ./piper "
                           "--model voices/en_US-amy-medium/en_US-amy-medium.onnx "
                           "--config voices/en_US-amy-medium/en_US-amy-medium.onnx.json "
