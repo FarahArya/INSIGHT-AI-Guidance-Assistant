@@ -46,7 +46,7 @@ int main()
     Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "InsightAI");
     Ort::SessionOptions session_options;
     session_options.SetIntraOpNumThreads(1);
-    Ort::Session session(env, "model.onnx", session_options);
+    Ort::Session session(env, "yolo11n.onnx", session_options);
     Ort::AllocatorWithDefaultOptions allocator;
 
     Ort::AllocatedStringPtr input_name_ptr = session.GetInputNameAllocated(0, allocator);
