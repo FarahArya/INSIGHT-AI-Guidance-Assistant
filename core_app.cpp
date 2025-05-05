@@ -47,8 +47,13 @@ int main()
     Ort::Session session(env, "yolo11n.onnx", session_options);
     Ort::AllocatorWithDefaultOptions allocator;
 
-    const char *input_name = session.GetInputName(0, allocator);
-    const char *output_name = session.GetOutputName(0, allocator);
+    // const char *input_name = session.GetInputName(0, allocator);
+    // const char *output_name = session.GetOutputName(0, allocator);
+    Ort::AllocatedStringPtr input_name_ptr = session.GetInputNameAllocated(0, allocator);
+    const char *input_name = input_name_ptr.get();
+
+    Ort::AllocatedStringPtr output_name_ptr = session.GetOutputNameAllocated(0, allocator);
+    const char *output_name = output_name_ptr.get();
 
     while (true)
     {
