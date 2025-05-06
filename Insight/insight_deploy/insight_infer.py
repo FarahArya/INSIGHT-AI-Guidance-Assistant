@@ -127,12 +127,12 @@ def estimate_distance(box, img_h):
 
 while True:
 
-    TRIGGER_FILE = "trigger.txt"
+    #TRIGGER_FILE = "trigger.txt"
 
 # At the start of the loop:
-    if not os.path.exists(TRIGGER_FILE):
-        time.sleep(0.05)
-        continue
+    #if not os.path.exists(TRIGGER_FILE):
+        #time.sleep(0.05)
+        #continue
         
     ok, frame = cap.read()
     if not ok:
@@ -162,7 +162,7 @@ while True:
     sentence = f"There is a {label} approximately {dist:.0f} metres ahead."
     print(json.dumps({"text": sentence}, ensure_ascii=False), flush=True)
     
-    os.remove(TRIGGER_FILE)
+    #os.remove(TRIGGER_FILE)
 
     time.sleep(0.15)
 
