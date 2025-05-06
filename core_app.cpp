@@ -121,11 +121,7 @@ int main()
             float h = output[i * 84 + 3];
             float objectness = output[i * 84 + 4];
 
-            float final_conf = objectness * max_class_score;
-            if (final_conf < 0.5f)
-                continue;
-
-            // Find top class score
+            // Find top class score for this detection
             int class_id = -1;
             float max_class_score = 0.0f;
             for (int c = 0; c < 80; ++c)
@@ -138,7 +134,10 @@ int main()
                 }
             }
 
-            // float final_conf = objectness * max_class_score;
+            float final_conf = objectness * max_class_score;
+            if (final_conf < 0.5f)
+                continue;
+
             if (final_conf > best_conf)
             {
                 best_conf = final_conf;
