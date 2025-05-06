@@ -100,7 +100,7 @@ int main()
 
         std::cout << "[INFO] Sending text to Piper: " << j["text"] << std::endl;
 
-        std::string cmd = "cat say.json | ./piper "
+        std::string cmd = "cat say.json | ./piper/piper "
                           "--model voices/en_US-amy-medium/en_US-amy-medium.onnx "
                           "--config voices/en_US-amy-medium/en_US-amy-medium.onnx.json "
                           "--json-input";
