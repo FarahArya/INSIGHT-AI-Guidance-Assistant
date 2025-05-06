@@ -86,6 +86,12 @@ int main()
             &output_name, 1);
         std::cout << "[INFO] Inference complete." << std::endl;
 
+        auto output_shape = output_tensors[0].GetTensorTypeAndShapeInfo().GetShape();
+        std::cout << "[DEBUG] Output shape: ";
+        for (auto s : output_shape)
+            std::cout << s << " ";
+        std::cout << std::endl;
+
         float *output = output_tensors[0].GetTensorMutableData<float>();
 
         // ⚠️ Replace with real parsing of model output
