@@ -108,6 +108,13 @@ NEAR_THRESH_METRES = 5                        # only announce objects closer tha
 # Load NCNN model (task explicitly set to 'detect' to silence warning)
 model = YOLO(MODEL_DIR, task="detect")
 
+TRIGGER_FILE = "trigger.txt"
+
+# At the start of the loop:
+if not os.path.exists(TRIGGER_FILE):
+    time.sleep(0.05)
+    continue
+
 # Open camera
 cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH,  640)
@@ -151,6 +158,8 @@ while True:
     label = LABELS[int(box.cls[0])]
     sentence = f"There is a {label} approximately {dist:.0f} metres ahead."
     print(json.dumps({"text": sentence}, ensure_ascii=False), flush=True)
+    
+    os.remove(TRIGGER_FILE)
 
     time.sleep(0.15)
 

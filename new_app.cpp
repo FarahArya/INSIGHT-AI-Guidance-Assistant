@@ -1,71 +1,72 @@
 #include <iostream>
 #include <fstream>
-#include <opencv2/opencv.hpp>
-#include <nlohmann/json.hpp>
 #include <cstdlib>
+#include <nlohmann/json.hpp>
 #include <thread>
 #include <chrono>
+#include <cstdio>
 
 using json = nlohmann::json;
 
 int main()
 {
-    std::cout << "[INFO] Starting AI Guidance Assistant..." << std::endl;
+    std::cout << "[INFO] Starting AI Guidance Assistant (Trigger-based)...\n";
 
-    // Just to keep the camera active and warmed up
-    // cv::VideoCapture cap(0);
-    // if (!cap.isOpened())
-    // {
-    //     std::cerr << "[ERROR] Could not open camera." << std::endl;
-    //     return 1;
-    // }
-    // std::cout << "[INFO] Camera opened successfully." << std::endl;
-
-    // Start Python script via popen
-    std::cout << "[INFO] Starting Python inference script..." << std::endl;
-    FILE *pipe = popen(".venv/bin/python Insight/insight_deploy/insight_infer.py", "r");
-    if (!pipe)
+    while (true)
     {
-        std::cerr << "[ERROR] Failed to run Python script." << std::endl;
-        return 1;
-    }
+        std::cout << "------------------------------------------\n";
+        std::cout << "[INFO] Capturing frame...\n";
 
-    char buffer[512];
-    while (fgets(buffer, sizeof(buffer), pipe))
-    {
-        std::string line(buffer);
-        // Skip lines that are not JSON
-        if (line.find("{\"text\"") == std::string::npos)
+        // Create trigger file to signal the Python script to start
+        std::ofstream trigger("trigger.txt");
+        trigger << "1";
+        trigger.close();
+
+        // Run Python script and capture its output
+        std::string command = ".venv/bin/python3 Insight/insight_deploy/insight_infer.py";
+        FILE *pipe = popen(command.c_str(), "r");
+        if (!pipe)
+        {
+            std::cerr << "[ERROR] Failed to start Python script.\n";
             continue;
-
-        try
-        {
-            json j = json::parse(line);
-            std::string text = j["text"];
-            std::cout << "[INFO] Sending to Piper: " << text << std::endl;
-
-            // Save JSON to file for Piper
-            std::ofstream out("say.json");
-            out << j.dump() << std::endl;
-            out.close();
-
-            std::string cmd =
-                "cat say.json | ./piper/piper "
-                "--model ./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx "
-                "--config ./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx.json "
-                "--output_file spoken.wav "
-                "--json-input && aplay spoken.wav";
-
-            std::system(cmd.c_str());
-        }
-        catch (std::exception &e)
-        {
-            std::cerr << "[ERROR] JSON parse error: " << e.what() << std::endl;
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        char buffer[512];
+        if (fgets(buffer, sizeof(buffer), pipe) != nullptr)
+        {
+            std::string jsonStr(buffer);
+            try
+            {
+                json j = json::parse(jsonStr);
+                std::string text = j["text"];
+                std::cout << "[INFO] Got from Python: " << text << "\n";
+
+                std::ofstream out("say.json");
+                out << j.dump();
+                out.close();
+
+                std::string tts = "cat say.json | ./piper/piper "
+                                  "--model ./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx "
+                                  "--config ./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx.json "
+                                  "--output_file spoken.wav "
+                                  "--json-input && aplay spoken.wav";
+                std::system(tts.c_str());
+            }
+            catch (...)
+            {
+                std::cerr << "[ERROR] Failed to parse Python output.\n";
+            }
+        }
+        else
+        {
+            std::cerr << "[ERROR] No output from Python script.\n";
+        }
+
+        pclose(pipe);
+
+        // Sleep a bit to simulate next iteration trigger pacing
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
     }
 
-    pclose(pipe);
     return 0;
 }
