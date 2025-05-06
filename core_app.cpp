@@ -170,11 +170,11 @@ int main()
         }
         /*--------------------------------------End of AI Model---------------------------------------------------------*/
 
-        float *output = output_tensors[0].GetTensorMutableData<float>();
+        // float *output = output_tensors[0].GetTensorMutableData<float>();
 
         // ⚠️ Replace with real parsing of model output
-        std::string label = "object";
-        int distance = 2;
+        // std::string label = "object";
+        // int distance = 2;
 
         json j;
         j["text"] = "There is a " + label + " approximately " + std::to_string(distance) + " metres ahead.";
