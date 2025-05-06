@@ -121,7 +121,8 @@ int main()
             float h = output[i * 84 + 3];
             float objectness = output[i * 84 + 4];
 
-            if (objectness < conf_threshold)
+            float final_conf = objectness * max_class_score;
+            if (final_conf < 0.5f)
                 continue;
 
             // Find top class score
@@ -163,18 +164,17 @@ int main()
                 real_height_m = 1.5;
             if (label == "dog")
                 real_height_m = 0.5;
-            // Add more custom rules if you want
 
             const float focal_px = 600.0f;
             distance = static_cast<int>((real_height_m * focal_px) / box_height_px);
+
+            if (distance <= 0 || distance > 15)
+            {
+                std::cout << "[INFO] Skipping object: unrealistic distance\n";
+                continue; // skip this detection
+            }
         }
         /*--------------------------------------End of AI Model---------------------------------------------------------*/
-
-        // float *output = output_tensors[0].GetTensorMutableData<float>();
-
-        // ⚠️ Replace with real parsing of model output
-        // std::string label = "object";
-        // int distance = 2;
 
         json j;
         j["text"] = "There is a " + label + " approximately " + std::to_string(distance) + " metres ahead.";
