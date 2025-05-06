@@ -98,7 +98,7 @@ REAL_HEIGHTS = {
 
 
 # ─────────────────────────  CONFIG  ──────────────────────────
-MODEL_DIR  = "models/yolo11n_ncnn_model"      # .param + .bin
+MODEL_DIR = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/Insight/insight_deploy/yolo11n.pt" # .param + .bin
 LABELS     = YOLO("yolo11n.pt").names         # reuse COCO names
 FOCAL_PX   = 600                              # tune after calibration
 CONF_THRES = 0.45
