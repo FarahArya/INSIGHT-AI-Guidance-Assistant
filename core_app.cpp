@@ -138,7 +138,7 @@ int main()
                 }
             }
 
-            float final_conf = objectness * max_class_score;
+            // float final_conf = objectness * max_class_score;
             if (final_conf > best_conf)
             {
                 best_conf = final_conf;
