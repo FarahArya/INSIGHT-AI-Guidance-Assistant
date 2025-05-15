@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+
+import cv2, json, time, numpy as np, os
+from ultralytics import YOLO
+
 """
 Insight – YOLOv11n (NCNN) → Piper TTS
 Run on Raspberry Pi 4:
@@ -6,9 +10,6 @@ Run on Raspberry Pi 4:
     python3 insight_infer.py | \
         piper --model /home/pi/voices/en_GB-alba-low.onnx --json-input
 """
-import cv2, json, time, numpy as np
-from ultralytics import YOLO
-
 
 
 REAL_HEIGHTS = {
@@ -98,71 +99,60 @@ REAL_HEIGHTS = {
 
 
 # ─────────────────────────  CONFIG  ──────────────────────────
-MODEL_DIR = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/Insight/insight_deploy/yolo11n.pt" # .param + .bin
-LABELS     = YOLO("yolo11n.pt").names         # reuse COCO names
-FOCAL_PX   = 600                              # tune after calibration
+MODEL_DIR = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/Insight/insight_deploy/yolo11n.pt"
+LABELS = YOLO("yolo11n.pt").names
+FOCAL_PX = 600
 CONF_THRES = 0.45
-NEAR_THRESH_METRES = 5                        # only announce objects closer than this distance
+NEAR_THRESH_METRES = 5
+TRIGGER_FILE = "trigger.txt"  # Trigger file to wait for
 # ─────────────────────────────────────────────────────────────
 
-# Load NCNN model (task explicitly set to 'detect' to silence warning)
+# Load YOLO model
 model = YOLO(MODEL_DIR, task="detect")
-
-
 
 # Open camera
 cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH,  640)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
 def estimate_distance(box, img_h):
-    """Return rough metres using bbox height."""
     x1, y1, x2, y2 = box.xyxy[0]
     h_px = y2 - y1
     label = LABELS[int(box.cls[0])]
     real_h = REAL_HEIGHTS.get(label, None)
     if real_h:
         return (real_h * FOCAL_PX) / h_px
-    return (img_h / h_px) * 0.5            # fallback heuristic
+    return (img_h / h_px) * 0.5
 
 while True:
+    # Wait for trigger
+    while not os.path.exists(TRIGGER_FILE):
+        time.sleep(0.05)
 
-    #TRIGGER_FILE = "trigger.txt"
-
-# At the start of the loop:
-    #if not os.path.exists(TRIGGER_FILE):
-        #time.sleep(0.05)
-        #continue
-        
     ok, frame = cap.read()
     if not ok:
-        break
+        continue
 
-    # Ultralytics handles pre‑ and post‑processing internally
     res = model(frame, imgsz=640, conf=CONF_THRES)[0]
     h = frame.shape[0]
 
-    # Distance for each box
     items = []
     for b in res.boxes:
         d = estimate_distance(b, h)
         items.append((d, b))
 
     if not items:
-        time.sleep(0.15)
+        os.remove(TRIGGER_FILE)
         continue
 
-    # pick the nearest object
     dist, box = min(items, key=lambda t: t[0])
     if dist > NEAR_THRESH_METRES:
-        time.sleep(0.15)
+        os.remove(TRIGGER_FILE)
         continue
 
     label = LABELS[int(box.cls[0])]
     sentence = f"There is a {label} approximately {dist:.0f} metres ahead."
     print(json.dumps({"text": sentence}, ensure_ascii=False), flush=True)
-    
-    #os.remove(TRIGGER_FILE)
 
-    time.sleep(0.15)
+    os.remove(TRIGGER_FILE)
 
