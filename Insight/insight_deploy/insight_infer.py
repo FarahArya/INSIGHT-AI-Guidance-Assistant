@@ -2,6 +2,7 @@
 
 import cv2, json, time, numpy as np, os
 from ultralytics import YOLO
+import sys
 
 """
 Insight – YOLOv11n (NCNN) → Piper TTS
@@ -152,7 +153,14 @@ while True:
 
     label = LABELS[int(box.cls[0])]
     sentence = f"There is a {label} approximately {dist:.0f} metres ahead."
-    print(json.dumps({"text": sentence}, ensure_ascii=False), flush=True)
+    # print(json.dumps({"text": sentence}, ensure_ascii=False), flush=True)
+
+    if dist <= NEAR_THRESH_METRES:
+        label = LABELS[int(box.cls[0])]
+        sentence = f"There is a {label} approximately {dist:.0f} metres ahead."
+        print(json.dumps({"text": sentence}, ensure_ascii=False), flush=True)
+        print(sentence, file=sys.stderr, flush=True)  # Human-readable log to stderr
+
 
     os.remove(TRIGGER_FILE)
 
