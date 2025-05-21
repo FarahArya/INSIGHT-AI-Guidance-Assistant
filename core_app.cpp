@@ -7,9 +7,14 @@
 
 using json = nlohmann::json;
 
+// Absolute paths to match Python script
+const std::string TRIGGER_PATH = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/trigger.txt";
+const std::string RESPONSE_PATH = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/say.json";
+const std::string FEEDBACK_PATH = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/feedback.json";
+
 void triggerPythonScript()
 {
-    std::ofstream triggerFile("trigger.txt");
+    std::ofstream triggerFile(TRIGGER_PATH);
     triggerFile << "run" << std::endl;
     triggerFile.close();
 }
@@ -20,14 +25,14 @@ bool waitForResponse(std::string &detectedText)
     int attempts = 0;
     while (attempts < maxRetries)
     {
-        std::ifstream responseFile("response.json");
+        std::ifstream responseFile(RESPONSE_PATH);
         if (responseFile.good())
         {
             json j;
             responseFile >> j;
             detectedText = j.value("text", "");
             responseFile.close();
-            std::remove("response.json");
+            std::remove(RESPONSE_PATH.c_str());
             return true;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -49,15 +54,16 @@ int main()
         if (waitForResponse(detectedText))
         {
             std::cout << "[INFO] Received response: " << detectedText << "\n";
-            std::ofstream out("say.json");
+
+            std::ofstream out(FEEDBACK_PATH);
             out << json{{"text", detectedText}}.dump() << std::endl;
             out.close();
 
-            std::string cmd = "cat say.json | ./piper/piper "
-                              "--model ./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx "
-                              "--config ./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx.json "
-                              "--output_file spoken.wav "
-                              "--json-input && aplay spoken.wav";
+            std::string cmd = "cat " + FEEDBACK_PATH + " | ./piper/piper "
+                                                       "--model ./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx "
+                                                       "--config ./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx.json "
+                                                       "--output_file spoken.wav "
+                                                       "--json-input && aplay spoken.wav";
             std::system(cmd.c_str());
         }
         else

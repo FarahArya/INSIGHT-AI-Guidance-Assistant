@@ -160,9 +160,8 @@ while True:
         sentence = f"There is a {label} approximately {dist:.0f} metres ahead."
         print(json.dumps({"text": sentence}, ensure_ascii=False), flush=True)
         print(sentence, file=sys.stderr, flush=True)  # Human-readable log to stderr
-
         response = {"text": sentence}
-        with open("say.json", "w") as f:
+        with open("/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/say.json", "w") as f:
             json.dump(response, f)
 
 
