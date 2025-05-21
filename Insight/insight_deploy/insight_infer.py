@@ -1,18 +1,13 @@
 #!/usr/bin/env python3
-
 import cv2, json, time, numpy as np, os
 from ultralytics import YOLO
 import sys
-
 """
-Insight – YOLOv11n (NCNN) → Piper TTS
-Run on Raspberry Pi 4:
-
-    python3 insight_infer.py | \
-        piper --model /home/pi/voices/en_GB-alba-low.onnx --json-input
+Insight – YOLOv11n (NCNN) → Piper TTS
+Run on Raspberry Pi 4:
+ python3 insight_infer.py | \
+ piper --model /home/pi/voices/en_GB-alba-low.onnx --json-input
 """
-
-
 REAL_HEIGHTS = {
     "person": 1.7,
     "bicycle": 1.1,
@@ -95,22 +90,17 @@ REAL_HEIGHTS = {
     "hair drier": 0.25,
     "toothbrush": 0.2
 }
-
-
-
-
-# ─────────────────────────  CONFIG  ──────────────────────────
+# ───────────────────────── CONFIG ──────────────────────────
 MODEL_DIR = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/Insight/insight_deploy/yolo11n.pt"
 LABELS = YOLO("yolo11n.pt").names
 FOCAL_PX = 600
 CONF_THRES = 0.45
 NEAR_THRESH_METRES = 5
 TRIGGER_FILE = "trigger.txt"  # Trigger file to wait for
+FEEDBACK_FILE = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/feedback.json"
 # ─────────────────────────────────────────────────────────────
-
 # Load YOLO model
 model = YOLO(MODEL_DIR, task="detect")
-
 # Open camera
 cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
@@ -129,42 +119,45 @@ while True:
     # Wait for trigger
     while not os.path.exists(TRIGGER_FILE):
         time.sleep(0.05)
-
+    
     ok, frame = cap.read()
     if not ok:
         continue
-
+    
     res = model(frame, imgsz=640, conf=CONF_THRES)[0]
     h = frame.shape[0]
-
     items = []
+    
     for b in res.boxes:
         d = estimate_distance(b, h)
         items.append((d, b))
-
+    
     if not items:
         os.remove(TRIGGER_FILE)
         continue
-
+    
     dist, box = min(items, key=lambda t: t[0])
     if dist > NEAR_THRESH_METRES:
         os.remove(TRIGGER_FILE)
         continue
-
+    
     label = LABELS[int(box.cls[0])]
     sentence = f"There is a {label} approximately {dist:.0f} metres ahead."
-    # print(json.dumps({"text": sentence}, ensure_ascii=False), flush=True)
-
-    if dist <= NEAR_THRESH_METRES:
-        label = LABELS[int(box.cls[0])]
-        sentence = f"There is a {label} approximately {dist:.0f} metres ahead."
-        print(json.dumps({"text": sentence}, ensure_ascii=False), flush=True)
-        print(sentence, file=sys.stderr, flush=True)  # Human-readable log to stderr
+    
+    # Send to stdout for piping to TTS
+    print(json.dumps({"text": sentence}, ensure_ascii=False), flush=True)
+    # Human-readable log to stderr
+    print(sentence, file=sys.stderr, flush=True)
+    
+    # Write to feedback file
+    try:
         response = {"text": sentence}
-        with open("/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/feedback.json", "w") as f:
+        with open(FEEDBACK_FILE, "w") as f:
             json.dump(response, f)
-
-
-
-    os.remove(TRIGGER_FILE)
-
+            f.flush()  # Ensure data is written to disk
+    except Exception as e:
+        print(f"Error writing to feedback file: {e}", file=sys.stderr, flush=True)
+    
+    # Remove trigger file to indicate completion
+    if os.path.exists(TRIGGER_FILE):
+        os.remove(TRIGGER_FILE)
