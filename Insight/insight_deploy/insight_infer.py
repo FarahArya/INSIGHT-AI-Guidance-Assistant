@@ -161,6 +161,11 @@ while True:
         print(json.dumps({"text": sentence}, ensure_ascii=False), flush=True)
         print(sentence, file=sys.stderr, flush=True)  # Human-readable log to stderr
 
+        response = {"text": sentence}
+        with open("say.json", "w") as f:
+            json.dump(response, f)
+
+
 
     os.remove(TRIGGER_FILE)
 
