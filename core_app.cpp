@@ -9,8 +9,8 @@ using json = nlohmann::json;
 
 // Absolute paths to match Python script
 const std::string TRIGGER_PATH = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/trigger.txt";
-const std::string RESPONSE_PATH = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/say.json";
-const std::string FEEDBACK_PATH = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/feedback.json";
+const std::string RESPONSE_PATH = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/feedback.json";
+const std::string FEEDBACK_PATH = RESPONSE_PATH;
 
 void triggerPythonScript()
 {
@@ -55,15 +55,21 @@ int main()
         {
             std::cout << "[INFO] Received response: " << detectedText << "\n";
 
-            std::ofstream out(FEEDBACK_PATH);
-            out << json{{"text", detectedText}}.dump() << std::endl;
-            out.close();
+            // std::ofstream out(FEEDBACK_PATH);
+            // out << json{{"text", detectedText}}.dump() << std::endl;
+            // out.close();
 
-            std::string cmd = "cat " + FEEDBACK_PATH + " | ./piper/piper "
+            std::string cmd = "cat " + RESPONSE_PATH + " | ./piper/piper "
                                                        "--model ./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx "
                                                        "--config ./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx.json "
                                                        "--output_file spoken.wav "
                                                        "--json-input && aplay spoken.wav";
+
+            // std::string cmd = "cat " + FEEDBACK_PATH + " | ./piper/piper "
+            //                                            "--model ./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx "
+            //                                            "--config ./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx.json "
+            //                                            "--output_file spoken.wav "
+            //                                            "--json-input && aplay spoken.wav";
             std::system(cmd.c_str());
         }
         else
