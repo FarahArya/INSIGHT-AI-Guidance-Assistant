@@ -9,8 +9,8 @@ using json = nlohmann::json;
 
 // Absolute paths to match Python script
 const std::string TRIGGER_PATH = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/trigger.txt";
-const std::string RESPONSE_PATH = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/feedback.json";
-const std::string FEEDBACK_PATH = RESPONSE_PATH;
+const std::string FEEDBACK_PATH = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/feedback.json";
+// const std::string FEEDBACK_PATH = RESPONSE_PATH;
 
 void triggerPythonScript()
 {
@@ -25,14 +25,14 @@ bool waitForResponse(std::string &detectedText)
     int attempts = 0;
     while (attempts < maxRetries)
     {
-        std::ifstream responseFile(RESPONSE_PATH);
+        std::ifstream responseFile(FEEDBACK_PATH);
         if (responseFile.good())
         {
             json j;
             responseFile >> j;
             detectedText = j.value("text", "");
             responseFile.close();
-            std::remove(RESPONSE_PATH.c_str());
+            std::remove(FEEDBACK_PATH.c_str());
             return true;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -59,7 +59,7 @@ int main()
             // out << json{{"text", detectedText}}.dump() << std::endl;
             // out.close();
 
-            std::string cmd = "cat " + RESPONSE_PATH + " | ./piper/piper "
+            std::string cmd = "cat " + FEEDBACK_PATH + " | ./piper/piper "
                                                        "--model ./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx "
                                                        "--config ./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx.json "
                                                        "--output_file spoken.wav "
