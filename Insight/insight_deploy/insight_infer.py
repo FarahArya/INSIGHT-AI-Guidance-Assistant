@@ -108,7 +108,7 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
 def estimate_distance(box, img_h):
     x1, y1, x2, y2 = box.xyxy[0]
-    h_px = y2 - y1
+    h_px = float(y2 - y1)  # Convert to float
     label = LABELS[int(box.cls[0])]
     real_h = REAL_HEIGHTS.get(label, None)
     if real_h:
@@ -188,7 +188,7 @@ while True:
         response = {
             "text": sentence,
             "objects_detected": len(nearby_objects),
-            "details": [{"object": label, "distance_metres": round(dist, 1)} for dist, label in nearby_objects]
+            "details": [{"object": label, "distance_metres": round(float(dist), 1)} for dist, label in nearby_objects]
         }
         with open(FEEDBACK_FILE, "w") as f:
             json.dump(response, f)
