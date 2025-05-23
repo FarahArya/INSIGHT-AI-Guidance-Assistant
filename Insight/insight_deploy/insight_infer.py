@@ -195,8 +195,8 @@ while True:
 
         with open(FEEDBACK_FILE + ".tmp", "w") as f:
             json.dump(response, f)
-        os.rename(FEEDBACK_FILE + ".tmp", FEEDBACK_FILE)
             f.flush()  # Ensure data is written to disk
+        os.rename(FEEDBACK_FILE + ".tmp", FEEDBACK_FILE)
     except Exception as e:
         print(f"Error writing to feedback file: {e}", file=sys.stderr, flush=True)
     
