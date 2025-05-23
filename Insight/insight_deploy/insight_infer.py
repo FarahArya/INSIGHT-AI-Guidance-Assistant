@@ -115,51 +115,71 @@ def estimate_distance(box, img_h):
         return (real_h * FOCAL_PX) / h_px
     return (img_h / h_px) * 0.5
 
+def create_response_text(nearby_objects):
+    """Create natural language response for all nearby objects"""
+    if len(nearby_objects) == 1:
+        dist, label = nearby_objects[0]
+        return f"There is a {label} approximately {dist:.0f} metres ahead."
+    
+    # Sort by distance for better readability
+    nearby_objects.sort(key=lambda x: x[0])
+    
+    if len(nearby_objects) == 2:
+        obj1, obj2 = nearby_objects
+        return f"There is a {obj1[1]} approximately {obj1[0]:.0f} metres ahead, and a {obj2[1]} at {obj2[0]:.0f} metres."
+    
+    # For 3+ objects
+    parts = []
+    for i, (dist, label) in enumerate(nearby_objects):
+        if i == 0:
+            parts.append(f"There is a {label} at {dist:.0f} metres")
+        elif i == len(nearby_objects) - 1:
+            parts.append(f"and a {label} at {dist:.0f} metres ahead")
+        else:
+            parts.append(f"a {label} at {dist:.0f} metres")
+    
+    return ", ".join(parts) + "."
+
 while True:
     # Wait for trigger
     while not os.path.exists(TRIGGER_FILE):
         time.sleep(0.05)
     
-    for _ in range(5):
-        cap.read()
-
     ok, frame = cap.read()
-
-    if not ok:
-        print("Error: Unable to read frame from camera.", file=sys.stderr, flush=True)
-        continue
-
     if not ok:
         continue
     
     res = model(frame, imgsz=640, conf=CONF_THRES)[0]
     h = frame.shape[0]
-    items = []
+    
+    # Get all objects with their distances
+    nearby_objects = []
     
     for b in res.boxes:
         d = estimate_distance(b, h)
-        items.append((d, b))
+        if d <= NEAR_THRESH_METRES:  # Only include nearby objects
+            label = LABELS[int(b.cls[0])]
+            nearby_objects.append((d, label))
     
-    if not items:
+    if not nearby_objects:
         os.remove(TRIGGER_FILE)
         continue
     
-    dist, box = min(items, key=lambda t: t[0])
-    if dist > NEAR_THRESH_METRES:
-        os.remove(TRIGGER_FILE)
-        continue
-    
-    label = LABELS[int(box.cls[0])]
-    sentence = f"There is a {label} approximately {dist:.0f} metres ahead."
+    # Create response for all nearby objects
+    sentence = create_response_text(nearby_objects)
     
     # Send to stdout for piping to TTS
     print(json.dumps({"text": sentence}, ensure_ascii=False), flush=True)
     # Human-readable log to stderr
     print(sentence, file=sys.stderr, flush=True)
     
-    # Write to feedback file
+    # Write detailed feedback to file
     try:
-        response = {"text": sentence}
+        response = {
+            "text": sentence,
+            "objects_detected": len(nearby_objects),
+            "details": [{"object": label, "distance_metres": round(dist, 1)} for dist, label in nearby_objects]
+        }
         with open(FEEDBACK_FILE, "w") as f:
             json.dump(response, f)
             f.flush()  # Ensure data is written to disk
