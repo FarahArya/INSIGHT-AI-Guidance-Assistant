@@ -95,7 +95,7 @@ MODEL_DIR = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/Insight/insight_deplo
 LABELS = YOLO("yolo11n.pt").names
 FOCAL_PX = 600
 CONF_THRES = 0.45
-NEAR_THRESH_METRES = 5
+NEAR_THRESH_METRES = 6  # Increased from 5 to 6 meters
 TRIGGER_FILE = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/trigger.txt"  # Trigger file to wait for
 FEEDBACK_FILE = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/feedback.json"
 # ─────────────────────────────────────────────────────────────
@@ -161,7 +161,7 @@ while True:
         label = LABELS[int(b.cls[0])]
         all_objects.append((d, label))
         
-        if d <= NEAR_THRESH_METRES:  # Only include nearby objects
+        if d <= NEAR_THRESH_METRES:  # Keep this as-is (already inclusive)
             nearby_objects.append((d, label))
     
     # Debug output to stderr
@@ -183,20 +183,23 @@ while True:
     # Human-readable log to stderr
     print(sentence, file=sys.stderr, flush=True)
     
-    # Write detailed feedback to file
+    # Write detailed feedback to file (atomic write using temp file)
     try:
         response = {
             "text": sentence,
             "objects_detected": len(nearby_objects),
             "details": [{"object": label, "distance_metres": round(float(dist), 1)} for dist, label in nearby_objects]
         }
-        # with open(FEEDBACK_FILE, "w") as f:
-        #     json.dump(response, f)
-
-        with open(FEEDBACK_FILE + ".tmp", "w") as f:
+        # Write to temp file first, then atomic rename
+        temp_file = FEEDBACK_FILE + ".tmp"
+        with open(temp_file, "w") as f:
             json.dump(response, f)
             f.flush()  # Ensure data is written to disk
-        os.rename(FEEDBACK_FILE + ".tmp", FEEDBACK_FILE)
+            os.fsync(f.fileno())  # Force write to disk
+        
+        # Atomic rename - this prevents C++ from reading partial files
+        os.rename(temp_file, FEEDBACK_FILE)
+        
     except Exception as e:
         print(f"Error writing to feedback file: {e}", file=sys.stderr, flush=True)
     
