@@ -154,14 +154,24 @@ while True:
     
     # Get all objects with their distances
     nearby_objects = []
+    all_objects = []  # For debugging
     
     for b in res.boxes:
         d = estimate_distance(b, h)
+        label = LABELS[int(b.cls[0])]
+        all_objects.append((d, label))
+        
         if d <= NEAR_THRESH_METRES:  # Only include nearby objects
-            label = LABELS[int(b.cls[0])]
             nearby_objects.append((d, label))
     
+    # Debug output to stderr
+    print(f"DEBUG: Detected {len(all_objects)} total objects", file=sys.stderr, flush=True)
+    for dist, label in all_objects:
+        print(f"DEBUG: {label} at {dist:.1f}m", file=sys.stderr, flush=True)
+    print(f"DEBUG: {len(nearby_objects)} objects within {NEAR_THRESH_METRES}m threshold", file=sys.stderr, flush=True)
+    
     if not nearby_objects:
+        print("DEBUG: No nearby objects, removing trigger file", file=sys.stderr, flush=True)
         os.remove(TRIGGER_FILE)
         continue
     
