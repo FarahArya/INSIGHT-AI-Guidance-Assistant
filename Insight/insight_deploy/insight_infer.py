@@ -145,7 +145,11 @@ while True:
     while not os.path.exists(TRIGGER_FILE):
         time.sleep(0.05)
     
-    ok, frame = cap.read()
+    # Flush camera buffer to get fresh frame
+    for _ in range(3):  # Clear 3 stale frames
+        cap.read()
+    
+    ok, frame = cap.read()  # Get fresh frame
     if not ok:
         continue
     
