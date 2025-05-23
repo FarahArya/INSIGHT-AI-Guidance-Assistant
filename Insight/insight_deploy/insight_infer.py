@@ -120,7 +120,15 @@ while True:
     while not os.path.exists(TRIGGER_FILE):
         time.sleep(0.05)
     
+    for _ in range(5):
+        cap.read()
+
     ok, frame = cap.read()
+
+    if not ok:
+        print("Error: Unable to read frame from camera.", file=sys.stderr, flush=True)
+        continue
+
     if not ok:
         continue
     
