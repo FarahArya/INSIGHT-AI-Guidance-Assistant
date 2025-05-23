@@ -96,7 +96,7 @@ LABELS = YOLO("yolo11n.pt").names
 FOCAL_PX = 600
 CONF_THRES = 0.45
 NEAR_THRESH_METRES = 5
-TRIGGER_FILE = "trigger.txt"  # Trigger file to wait for
+TRIGGER_FILE = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/trigger.txt"  # Trigger file to wait for
 FEEDBACK_FILE = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/feedback.json"
 # ─────────────────────────────────────────────────────────────
 # Load YOLO model
