@@ -190,8 +190,12 @@ while True:
             "objects_detected": len(nearby_objects),
             "details": [{"object": label, "distance_metres": round(float(dist), 1)} for dist, label in nearby_objects]
         }
-        with open(FEEDBACK_FILE, "w") as f:
+        # with open(FEEDBACK_FILE, "w") as f:
+        #     json.dump(response, f)
+
+        with open(FEEDBACK_FILE + ".tmp", "w") as f:
             json.dump(response, f)
+        os.rename(FEEDBACK_FILE + ".tmp", FEEDBACK_FILE)
             f.flush()  # Ensure data is written to disk
     except Exception as e:
         print(f"Error writing to feedback file: {e}", file=sys.stderr, flush=True)
@@ -199,3 +203,10 @@ while True:
     # Remove trigger file to indicate completion
     if os.path.exists(TRIGGER_FILE):
         os.remove(TRIGGER_FILE)
+
+
+
+
+        with open(FEEDBACK_FILE + ".tmp", "w") as f:
+    json.dump(response, f)
+os.rename(FEEDBACK_FILE + ".tmp", FEEDBACK_FILE)

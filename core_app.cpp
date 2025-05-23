@@ -16,6 +16,8 @@ void triggerPythonScript()
     std::ofstream triggerFile(TRIGGER_PATH);
     triggerFile << "run" << std::endl;
     triggerFile.close();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
 }
 
 bool waitForResponse(std::string &detectedText)
