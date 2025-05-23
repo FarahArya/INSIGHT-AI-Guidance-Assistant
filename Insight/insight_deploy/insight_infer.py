@@ -203,10 +203,3 @@ while True:
     # Remove trigger file to indicate completion
     if os.path.exists(TRIGGER_FILE):
         os.remove(TRIGGER_FILE)
-
-
-
-
-        with open(FEEDBACK_FILE + ".tmp", "w") as f:
-    json.dump(response, f)
-os.rename(FEEDBACK_FILE + ".tmp", FEEDBACK_FILE)
