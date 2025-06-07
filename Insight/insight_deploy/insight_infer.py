@@ -376,8 +376,8 @@ REAL_HEIGHTS = {
     "Table Tennis": 0.04
 }
 # ───────────────────────── CONFIG ──────────────────────────
-MODEL_DIR = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/Insight/insight_deploy/yolo11n.pt"
-LABELS = YOLO("yolo11n.pt").names
+MODEL_DIR = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/Insight/insight_deploy/yolo11n_object365.pt"
+LABELS = YOLO("yolo11n_object365.pt").names
 FOCAL_PX = 600
 CONF_THRES = 0.45
 NEAR_THRESH_METRES = 6  # Increased from 5 to 6 meters
