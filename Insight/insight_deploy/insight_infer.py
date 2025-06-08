@@ -376,13 +376,14 @@ REAL_HEIGHTS = {
     "Table Tennis": 0.04
 }
 # ───────────────────────── CONFIG ──────────────────────────
-MODEL_DIR = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/Insight/insight_deploy/yolo11n_object365.pt"
-LABELS = YOLO("yolo11n_object365.pt").names
+MODEL_DIR = os.getenv('MODEL_PATH', '/app/models/yolo11n_object365.pt')
+LABELS = YOLO(MODEL_DIR).names
 FOCAL_PX = 600
 CONF_THRES = 0.45
 NEAR_THRESH_METRES = 6  # Increased from 5 to 6 meters
-TRIGGER_FILE = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/trigger.txt"  # Trigger file to wait for
-FEEDBACK_FILE = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/feedback.json"
+TRIGGER_FILE = os.getenv('TRIGGER_PATH', '/shared/trigger.txt')
+FEEDBACK_FILE = os.getenv('FEEDBACK_PATH', '/shared/feedback.json')
+
 # ─────────────────────────────────────────────────────────────
 # Load YOLO model
 model = YOLO(MODEL_DIR, task="detect")

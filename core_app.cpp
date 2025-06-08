@@ -8,8 +8,9 @@
 using json = nlohmann::json;
 
 // Absolute paths to match Python script
-const std::string TRIGGER_PATH = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/trigger.txt";
-const std::string FEEDBACK_PATH = "/home/rpi-farah/INSIGHT-AI-Guidance-Assistant/feedback.json";
+// Update paths to match container mounted volume
+const std::string TRIGGER_PATH = "./shared/trigger.txt";
+const std::string FEEDBACK_PATH = "./shared/feedback.json";
 
 void triggerPythonScript()
 {
