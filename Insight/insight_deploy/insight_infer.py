@@ -376,7 +376,7 @@ REAL_HEIGHTS = {
     "Table Tennis": 0.04
 }
 # ───────────────────────── CONFIG ──────────────────────────
-MODEL_DIR = os.getenv('MODEL_PATH', '/app/models/yolo11n_object365.pt')
+MODEL_DIR = os.getenv('MODEL_PATH', '/models/yolo11n_object365.pt')
 LABELS = YOLO(MODEL_DIR).names
 FOCAL_PX = 600
 CONF_THRES = 0.45
