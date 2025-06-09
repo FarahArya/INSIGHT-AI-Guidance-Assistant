@@ -18,12 +18,15 @@ const std::string FEEDBACK_PATH = "./shared/feedback.json";
 void say(const std::string &sentence)
 {
     json j = {{"text", sentence}};
+    std::string jsonEsc = j.dump(); // {"text":"..."} with double-quotes
 
-    /*  safest: put JSON in double quotes and escape inner quotes  */
-    std::string jsonEsc = j.dump(); // produces {"text":"..."}  (only double-quotes)
-    // escape the internal double-quotes for the shell:
-    for (std::size_t pos = 0; (pos = jsonEsc.find('"', pos)) != std::string::npos; ++pos)
-        jsonEsc.insert(pos++, '\\');
+    // escape every existing double-quote for the shell
+    for (std::size_t pos = 0;
+         (pos = jsonEsc.find('"', pos)) != std::string::npos;
+         pos += 2) // skip over the \" we just added
+    {
+        jsonEsc.insert(pos++, 1, '\\'); // << fix is here
+    }
 
     std::string cmd =
         "echo \"" + jsonEsc + "\" | ./piper/piper "
@@ -34,6 +37,7 @@ void say(const std::string &sentence)
 
     std::system(cmd.c_str());
 }
+
 // ------------------------------------------------------------------
 
 void triggerPythonScript()
