@@ -7,39 +7,48 @@
 
 using json = nlohmann::json;
 
-// Absolute paths to match Python script
-// Update paths to match container mounted volume
+// ------------------------------------------------------------------
+// paths shared with the Python container/script
 const std::string TRIGGER_PATH = "./shared/trigger.txt";
 const std::string FEEDBACK_PATH = "./shared/feedback.json";
+// ------------------------------------------------------------------
+
+// ─────────────── helper: send a sentence to Piper and play it ─────
+void say(const std::string &sentence)
+{
+    json j = {{"text", sentence}};
+    std::string cmd =
+        "echo '" + j.dump() + R"'(' | ./piper/piper "
+        "--model ./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx "
+        "--config ./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx.json "
+        "--output_file spoken.wav "
+        "--json-input && aplay spoken.wav" )'";
+
+    std::system(cmd.c_str());
+}
+// ------------------------------------------------------------------
 
 void triggerPythonScript()
 {
     std::ofstream triggerFile(TRIGGER_PATH);
-    triggerFile << "run" << std::endl;
-    triggerFile.close();
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    triggerFile << "run\n";
 }
 
 bool waitForResponse(std::string &detectedText)
 {
-    const int maxRetries = 20;
-    int attempts = 0;
-
-    while (attempts < maxRetries)
+    for (int retry = 0; retry < 20; ++retry)
     {
-        std::ifstream responseFile(FEEDBACK_PATH);
-        if (responseFile.good())
+        std::ifstream in(FEEDBACK_PATH);
+        if (in.good())
         {
             json j;
-            responseFile >> j;
+            in >> j;
             detectedText = j.value("text", "");
-            responseFile.close();
-            std::remove(FEEDBACK_PATH.c_str()); // Clean up
+            in.close();
+            std::remove(FEEDBACK_PATH.c_str());
             return true;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        attempts++;
     }
     return false;
 }
@@ -48,27 +57,19 @@ int main()
 {
     std::cout << "[INFO] AI Guidance Assistant started.\n";
 
+    /* >>> NEW: power-on announcement */
+    say("Power on, Insight is your assistant");
+
     while (true)
     {
         triggerPythonScript();
         std::cout << "[INFO] Triggered Python script to capture and process frame.\n";
 
-        std::string detectedText;
-        if (waitForResponse(detectedText))
+        std::string detected;
+        if (waitForResponse(detected))
         {
-            std::cout << "[INFO] Received response: " << detectedText << "\n";
-
-            // Create JSON string and pipe directly to Piper
-            json jsonOutput = {{"text", detectedText}};
-            std::string jsonStr = jsonOutput.dump();
-
-            std::string cmd = "echo '" + jsonStr + "' | ./piper/piper "
-                                                   "--model ./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx "
-                                                   "--config ./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx.json "
-                                                   "--output_file spoken.wav "
-                                                   "--json-input && aplay spoken.wav";
-
-            std::system(cmd.c_str());
+            std::cout << "[INFO] Received response: " << detected << '\n';
+            say(detected); // speak detection result
         }
         else
         {
@@ -77,6 +78,5 @@ int main()
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
-
     return 0;
 }
