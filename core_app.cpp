@@ -25,7 +25,8 @@ void say(const std::string &sentence)
          (pos = jsonEsc.find('"', pos)) != std::string::npos;
          pos += 2) // skip over the \" we just added
     {
-        jsonEsc.insert(pos++, 1, '\\'); // << fix is here
+        // jsonEsc.insert(pos++, 1, '\\'); // << fix is here
+        jsonEsc.insert(pos, 1, '\\'); // insert one back-slash
     }
 
     std::string cmd =
