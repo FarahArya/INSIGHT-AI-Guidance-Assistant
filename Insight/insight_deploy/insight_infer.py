@@ -381,8 +381,8 @@ LABELS = YOLO(MODEL_DIR).names
 FOCAL_PX = 600
 CONF_THRES = 0.45
 NEAR_THRESH_METRES = 6  # Increased from 5 to 6 meters
-TRIGGER_FILE = os.getenv('TRIGGER_PATH', '/shared/trigger.txt')
-FEEDBACK_FILE = os.getenv('FEEDBACK_PATH', '/shared/feedback.json')
+TRIGGER_FILE = os.getenv('TRIGGER_PATH', '../../shared/trigger.txt')
+FEEDBACK_FILE = os.getenv('FEEDBACK_PATH', '../../shared/feedback.json')
 
 # ─────────────────────────────────────────────────────────────
 # Load YOLO model
