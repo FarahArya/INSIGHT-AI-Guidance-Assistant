@@ -14,15 +14,23 @@ const std::string FEEDBACK_PATH = "./shared/feedback.json";
 // ------------------------------------------------------------------
 
 // ─────────────── helper: send a sentence to Piper and play it ─────
+// ─────────────── helper: send a sentence to Piper and play it ─────
 void say(const std::string &sentence)
 {
     json j = {{"text", sentence}};
+
+    /*  safest: put JSON in double quotes and escape inner quotes  */
+    std::string jsonEsc = j.dump(); // produces {"text":"..."}  (only double-quotes)
+    // escape the internal double-quotes for the shell:
+    for (std::size_t pos = 0; (pos = jsonEsc.find('"', pos)) != std::string::npos; ++pos)
+        jsonEsc.insert(pos++, '\\');
+
     std::string cmd =
-        "echo '" + j.dump() + R"'(' | ./piper/piper "
-        "--model ./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx "
-        "--config ./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx.json "
-        "--output_file spoken.wav "
-        "--json-input && aplay spoken.wav" )'";
+        "echo \"" + jsonEsc + "\" | ./piper/piper "
+                              "--model ./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx "
+                              "--config ./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx.json "
+                              "--output_file spoken.wav "
+                              "--json-input && aplay spoken.wav";
 
     std::system(cmd.c_str());
 }
