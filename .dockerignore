@@ -1,0 +1,9 @@
+__pycache__/
+*.wav
+*.onnx
+*.pt
+*.mp4
+*.avi
+*.log
+*.json
+*.tmp
