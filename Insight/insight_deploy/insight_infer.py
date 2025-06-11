@@ -392,17 +392,62 @@ cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
-def estimate_distance(box, img_h):
+
+def estimate_distance(box, img_h, img_w):
+    """Improved version of your existing function"""
     x1, y1, x2, y2 = box.xyxy[0]
-    h_px = float(y2 - y1)  # Convert to float
+    h_px = float(y2 - y1)
+    w_px = float(x2 - x1)
     label = LABELS[int(box.cls[0])]
+
+    # Better focal length estimation based on image dimensions
+    # Typical smartphone/webcam has ~70-degree horizontal FOV
+    focal_px = img_w / (2 * np.tan(np.radians(35)))  # ~70 deg / 2
+
     real_h = REAL_HEIGHTS.get(label, None)
+
     if real_h:
-        result = float(real_h * FOCAL_PX) / h_px
-        return result
-    else: 
-        result = float(img_h / h_px) * 0.5
-        return result
+        # Height-based estimation with better focal length
+        distance_h = (real_h * focal_px) / h_px
+
+        # Width-based estimation for validation (if we have width data)
+        real_w = {
+            "Person": 0.50, "Car": 1.80, "Bicycle": 0.60, "Bus": 2.50,
+            "Truck": 2.50, "Chair": 0.60, "Motorcycle": 0.80
+        }.get(label, None)
+
+        if real_w:
+            distance_w = (real_w * focal_px) / w_px
+            # Average the two estimates, weighted by reliability
+            distance = (distance_h * 0.7 + distance_w * 0.3)
+        else:
+            distance = distance_h
+
+        # Ground plane correction for objects on ground
+        if label in ["Person", "Car", "Bicycle", "Chair", "Dog", "Cat"]:
+            # Assume camera is 1.5m high, pointing slightly down
+            camera_height = 1.5
+            box_bottom_y = float(y2)
+            img_center_y = img_h / 2
+
+            if box_bottom_y > img_center_y:  # Object below center (on ground)
+                # Simple ground plane correction
+                ground_factor = 1.0 + 0.3 * (box_bottom_y - img_center_y) / img_center_y
+                distance *= ground_factor
+
+        return max(0.5, min(distance, 100.0))  # Clamp to reasonable range
+    else:
+        # Improved fallback for unknown objects
+        apparent_size = (h_px * w_px) / (img_h * img_w)
+        if apparent_size > 0.2:
+            return 2.0
+        elif apparent_size > 0.1:
+            return 5.0
+        elif apparent_size > 0.05:
+            return 10.0
+        else:
+            return 20.0
+
 
 def create_response_text(nearby_objects):
     """Create natural language response for all nearby objects"""
@@ -450,7 +495,7 @@ while True:
     all_objects = []  # For debugging
     
     for b in res.boxes:
-        d = estimate_distance(b, h)
+        d = estimate_distance(b, h, frame.shape[1])
         label = LABELS[int(b.cls[0])]
         all_objects.append((d, label))
         
