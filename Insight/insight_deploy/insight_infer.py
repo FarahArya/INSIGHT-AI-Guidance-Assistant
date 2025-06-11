@@ -400,7 +400,7 @@ def estimate_distance(box, img_h):
     if real_h:
         result = float(real_h * FOCAL_PX) / h_px
         return result
-    else 
+    else: 
         result = float(img_h / h_px) * 0.5
         return result
 
@@ -450,7 +450,7 @@ while True:
     all_objects = []  # For debugging
     
     for b in res.boxes:
-        float d = estimate_distance(b, h)
+        d = estimate_distance(b, h)
         label = LABELS[int(b.cls[0])]
         all_objects.append((d, label))
         
