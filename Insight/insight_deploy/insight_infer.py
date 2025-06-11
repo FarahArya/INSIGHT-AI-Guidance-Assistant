@@ -378,7 +378,7 @@ REAL_HEIGHTS = {
 # ───────────────────────── CONFIG ──────────────────────────
 MODEL_DIR = os.getenv('MODEL_PATH', './models/yolo11n_object365.pt')
 LABELS = YOLO(MODEL_DIR).names
-FOCAL_PX = 1000
+FOCAL_PX = 300
 CONF_THRES = 0.45
 NEAR_THRESH_METRES = 6  # Increased from 5 to 6 meters
 TRIGGER_FILE = os.getenv('TRIGGER_PATH', '../../shared/trigger.txt')
