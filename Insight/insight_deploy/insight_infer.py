@@ -398,8 +398,11 @@ def estimate_distance(box, img_h):
     label = LABELS[int(box.cls[0])]
     real_h = REAL_HEIGHTS.get(label, None)
     if real_h:
-        return float(real_h * FOCAL_PX) / h_px
-    return float(img_h / h_px) * 0.5
+        float result = float(real_h * FOCAL_PX) / h_px
+        return result
+    else 
+        float result = float(img_h / h_px) * 0.5
+        return result
 
 def create_response_text(nearby_objects):
     """Create natural language response for all nearby objects"""
