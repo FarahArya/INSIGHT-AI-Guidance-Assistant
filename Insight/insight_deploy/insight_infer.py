@@ -453,24 +453,24 @@ def create_response_text(nearby_objects):
     """Create natural language response for all nearby objects"""
     if len(nearby_objects) == 1:
         dist, label = nearby_objects[0]
-        return f"There is a {label} approximately {dist:.0f} metres ahead."
+        return f"There is a {label} approximately {dist:.1f} metres ahead."
     
     # Sort by distance for better readability
     nearby_objects.sort(key=lambda x: x[0])
     
     if len(nearby_objects) == 2:
         obj1, obj2 = nearby_objects
-        return f"There is a {obj1[1]} approximately {obj1[0]:.0f} metres ahead, and a {obj2[1]} at {obj2[0]:.0f} metres."
+        return f"There is a {obj1[1]} approximately {obj1[0]:.1f} metres ahead, and a {obj2[1]} at {obj2[0]:.1f} metres."
     
     # For 3+ objects
     parts = []
     for i, (dist, label) in enumerate(nearby_objects):
         if i == 0:
-            parts.append(f"There is a {label} at {dist:.0f} metres")
+            parts.append(f"There is a {label} at {dist:.1f} metres")
         elif i == len(nearby_objects) - 1:
-            parts.append(f"and a {label} at {dist:.0f} metres ahead")
+            parts.append(f"and a {label} at {dist:.1f} metres ahead")
         else:
-            parts.append(f"a {label} at {dist:.0f} metres")
+            parts.append(f"a {label} at {dist:.1f} metres")
     
     return ", ".join(parts) + "."
 
@@ -526,7 +526,7 @@ while True:
         response = {
             "text": sentence,
             "objects_detected": len(nearby_objects),
-            "details": [{"object": label, "distance_metres": float(dist)} for dist, label in nearby_objects]
+            "details": [{"object": label, "distance_metres": dist} for dist, label in nearby_objects]
         }
         # Write to temp file first, then atomic rename
         temp_file = FEEDBACK_FILE + ".tmp"
