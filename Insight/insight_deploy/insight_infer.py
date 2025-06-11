@@ -380,7 +380,7 @@ MODEL_DIR = os.getenv('MODEL_PATH', './models/yolo11n_object365.pt')
 LABELS = YOLO(MODEL_DIR).names
 FOCAL_PX = 35
 CONF_THRES = 0.45
-NEAR_THRESH_METRES = 6  # Increased from 5 to 6 meters
+NEAR_THRESH_METRES = 50  # Increased from 5 to 6 meters
 TRIGGER_FILE = os.getenv('TRIGGER_PATH', '../../shared/trigger.txt')
 FEEDBACK_FILE = os.getenv('FEEDBACK_PATH', '../../shared/feedback.json')
 
@@ -398,8 +398,8 @@ def estimate_distance(box, img_h):
     label = LABELS[int(box.cls[0])]
     real_h = REAL_HEIGHTS.get(label, None)
     if real_h:
-        return (real_h * FOCAL_PX) / h_px
-    return (img_h / h_px) * 0.5
+        return float(real_h * FOCAL_PX) / h_px
+    return float(img_h / h_px) * 0.5
 
 def create_response_text(nearby_objects):
     """Create natural language response for all nearby objects"""
