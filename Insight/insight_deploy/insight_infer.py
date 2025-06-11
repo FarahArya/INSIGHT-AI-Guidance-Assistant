@@ -526,7 +526,7 @@ while True:
         response = {
             "text": sentence,
             "objects_detected": len(nearby_objects),
-            "details": [{"object": label, "distance_metres": round(float(dist), 1)} for dist, label in nearby_objects]
+            "details": [{"object": label, "distance_metres": float(dist)} for dist, label in nearby_objects]
         }
         # Write to temp file first, then atomic rename
         temp_file = FEEDBACK_FILE + ".tmp"
