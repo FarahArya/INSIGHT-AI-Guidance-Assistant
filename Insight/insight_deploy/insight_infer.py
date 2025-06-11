@@ -447,7 +447,7 @@ while True:
     all_objects = []  # For debugging
     
     for b in res.boxes:
-        d = estimate_distance(b, h)
+        float d = estimate_distance(b, h)
         label = LABELS[int(b.cls[0])]
         all_objects.append((d, label))
         
