@@ -343,7 +343,7 @@ class VisionAssistant:
         
         if len(nearby_objects) == 2:
             obj1, obj2 = nearby_objects
-            return f"There is a {label1} approximately {obj1[0]:.0f} metres ahead, and a {obj2[1]} at {obj2[0]:.0f} metres."
+            return f"There is a {obj1[1]} approximately {obj1[0]:.0f} metres ahead, and a {obj2[1]} at {obj2[0]:.0f} metres."
         
         # For 3+ objects, limit to 3 closest
         nearby_objects = nearby_objects[:3]
