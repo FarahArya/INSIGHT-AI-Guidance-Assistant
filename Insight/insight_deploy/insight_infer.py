@@ -1,14 +1,7 @@
-#!/usr/bin/env python3
-import cv2, json, time, numpy as np, os
+import cv2, json, time, numpy as np, os, sys
 from ultralytics import YOLO, solutions
-import sys
 
-"""
-Insight – YOLOv11n (NCNN) → Piper TTS
-Run on Raspberry Pi 4:
- python3 insight_infer.py | \
- piper --model /home/pi/voices/en_GB-alba-low.onnx --json-input
-"""
+# ────────────── REAL HEIGHTS ───────────────
 REAL_HEIGHTS = {
     "Person": 1.70,
     "Sneakers": 0.12,
@@ -376,34 +369,40 @@ REAL_HEIGHTS = {
     "Curling": 0.90,
     "Table Tennis": 0.04
 }
-# ───────────────────────── CONFIG ──────────────────────────
+
+
+# ────────────── CONFIGURATION ───────────────
 MODEL_DIR = os.getenv('MODEL_PATH', './models/yolo11n_object365.pt')
 LABELS = YOLO(MODEL_DIR).names
-FOCAL_PX = 600
 CONF_THRES = 0.45
-NEAR_THRESH_METRES = 6  # Increased from 5 to 6 meters
+NEAR_THRESH_METRES = 6
 TRIGGER_FILE = os.getenv('TRIGGER_PATH', '../../shared/trigger.txt')
 FEEDBACK_FILE = os.getenv('FEEDBACK_PATH', '../../shared/feedback.json')
+IMG_SZ = 416
 
-# ─────────────────────────────────────────────────────────────
-# Load YOLO model and distance calculator class
-# Initialize distance calculation object using Ultralytics solutions
-distancecalculator = solutions.DistanceCalculation(
-    model=MODEL_DIR,
-    show=False,  # set to True if you want to display the output
-    line_width=2,
-    show_conf=True,
-    show_labels=True
-)
-model = YOLO(MODEL_DIR, task="detect")
-# Open camera
-cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+# Load focal length from calibration file if available
+try:
+    with open("calib_cam.json") as f:
+        FOCAL_PX = json.load(f)["focal_px"]
+        print(f"[INFO] Using calibrated focal = {FOCAL_PX}", file=sys.stderr)
+except (FileNotFoundError, KeyError):
+    FOCAL_PX = 600
+    print("[WARN] calib_cam.json missing – using default.", file=sys.stderr)
 
+# ────────────── GUI Safety Guard for Headless ───────────────
+if not os.getenv("DISPLAY"):
+    def _nogui(*a, **k): return None
+    cv2.namedWindow = cv2.imshow = cv2.destroyAllWindows = _nogui
+    cv2.setMouseCallback = _nogui
+    cv2.waitKey = lambda *a, **k: -1
+    print("[INFO] HighGUI disabled.", file=sys.stderr)
 
+# ────────────── Performance Flags ───────────────
+os.environ["OMP_NUM_THREADS"] = "1"
+cv2.setUseOptimized(True)
+
+# ────────────── Distance Estimation Fallback ───────────────
 def estimate_distance_fallback(box, img_h):
-    """Fallback distance estimation using the original method"""
     x1, y1, x2, y2 = box.xyxy[0]
     h_px = float(y2 - y1)
     label = LABELS[int(box.cls[0])]
@@ -412,37 +411,22 @@ def estimate_distance_fallback(box, img_h):
         return (real_h * FOCAL_PX) / h_px
     return (img_h / h_px) * 0.5
 
-
+# ────────────── Bounding Box Helper ───────────────
 def get_box_centroid(box):
-    """Get centroid of bounding box"""
     x1, y1, x2, y2 = box.xyxy[0]
     return ((x1 + x2) / 2, (y1 + y2) / 2)
 
-
-def calculate_euclidean_distance(point1, point2, pixels_per_meter=None):
-    """Calculate Euclidean distance between two points"""
-    if pixels_per_meter is None:
-        # Use a reasonable default or calculate based on your setup
-        pixels_per_meter = 100  # Adjust based on your camera setup
-
-    pixel_distance = np.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
-    return pixel_distance / pixels_per_meter
-
-
+# ────────────── Natural Language Response ───────────────
 def create_response_text(nearby_objects):
-    """Create natural language response for all nearby objects"""
     if len(nearby_objects) == 1:
         dist, label = nearby_objects[0]
         return f"There is a {label} approximately {dist:.0f} metres ahead."
 
-    # Sort by distance for better readability
     nearby_objects.sort(key=lambda x: x[0])
-
     if len(nearby_objects) == 2:
         obj1, obj2 = nearby_objects
         return f"There is a {obj1[1]} approximately {obj1[0]:.0f} metres ahead, and a {obj2[1]} at {obj2[0]:.0f} metres."
 
-    # For 3+ objects
     parts = []
     for i, (dist, label) in enumerate(nearby_objects):
         if i == 0:
@@ -451,170 +435,110 @@ def create_response_text(nearby_objects):
             parts.append(f"and a {label} at {dist:.0f} metres ahead")
         else:
             parts.append(f"a {label} at {dist:.0f} metres")
-
     return ", ".join(parts) + "."
 
-
+# ────────────── Interactive Distance Calculator ───────────────
 class InteractiveDistanceCalculator:
-    """Enhanced distance calculator that combines Ultralytics solutions with custom logic"""
-
-    def __init__(self, model_path, show=False):
-        self.distance_calc = solutions.DistanceCalculation(
-            model=model_path,
-            show=show,
-            line_width=2,
-            show_conf=True,
-            show_labels=True
-        )
-        self.selected_objects = []
-        self.frame_count = 0
+    def __init__(self, distance_calc):
+        self.distance_calc = distance_calc
 
     def process_frame(self, frame):
-        """Process frame with distance calculation"""
-        # Use Ultralytics distance calculation
         results = self.distance_calc(frame)
-
-        # Get detection results
         if hasattr(results, 'boxes') and results.boxes is not None:
             return results, results.boxes
-        else:
-            # Fallback to regular YOLO detection
-            detection_results = model(frame, imgsz=640, conf=CONF_THRES)[0]
-            return results, detection_results.boxes
+        det = model(frame, imgsz=IMG_SZ, conf=CONF_THRES)[0]
+        return det, det.boxes
 
     def get_distances_between_objects(self, boxes):
-        """Calculate distances between all detected objects"""
-        distances = []
-        centroids = []
-
-        # Get centroids of all detected objects
+        distances, centroids = [], []
         for box in boxes:
             centroid = get_box_centroid(box)
             label = LABELS[int(box.cls[0])]
             centroids.append((centroid, label, box))
 
-        # Calculate distances between all pairs
         for i in range(len(centroids)):
             for j in range(i + 1, len(centroids)):
-                point1, label1, box1 = centroids[i]
-                point2, label2, box2 = centroids[j]
-
-                # Calculate Euclidean distance in pixels
-                pixel_distance = np.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
-
-                # Convert to approximate real-world distance
-                # This is a simplified conversion - you may need to calibrate this
-                estimated_distance = pixel_distance / 100  # Adjust this factor based on your setup
-
-                distances.append({
-                    'objects': (label1, label2),
-                    'pixel_distance': pixel_distance,
-                    'estimated_distance': estimated_distance,
-                    'centroids': (point1, point2)
-                })
-
+                p1, l1, _ = centroids[i]
+                p2, l2, _ = centroids[j]
+                pd = np.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
+                est = pd / 100
+                distances.append({'objects': (l1, l2), 'estimated_distance': est})
         return distances
 
+# ────────────── Initialize ───────────────
+model = YOLO(MODEL_DIR)
+distance_calc = solutions.DistanceCalculation(model=model, show=False, line_width=2, show_conf=True, show_labels=True)
+calc = InteractiveDistanceCalculator(distance_calc)
 
-enhanced_calc = InteractiveDistanceCalculator(MODEL_DIR, show=False)
+cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
-print("Enhanced Distance Calculation System Started", file=sys.stderr, flush=True)
-print("Using Ultralytics YOLO11 Distance Calculation Solutions", file=sys.stderr, flush=True)
+print("[INFO] Insight AI system ready.", file=sys.stderr)
 
+# ────────────── Main Loop ───────────────
 while True:
-    # Wait for trigger
     while not os.path.exists(TRIGGER_FILE):
         time.sleep(0.05)
 
-    # Flush camera buffer to get fresh frame
     for _ in range(3):
         cap.read()
-
     ok, frame = cap.read()
     if not ok:
         continue
 
     try:
-        # Process frame with enhanced distance calculation
-        results, boxes = enhanced_calc.process_frame(frame)
+        results, boxes = calc.process_frame(frame)
         h = frame.shape[0]
+        nearby, all_objects = [], []
 
-        # Get all objects with their distances using your original method
-        nearby_objects = []
-        all_objects = []
-
-        if boxes is not None and len(boxes) > 0:
+        if boxes:
             for b in boxes:
                 d = estimate_distance_fallback(b, h)
                 label = LABELS[int(b.cls[0])]
                 all_objects.append((d, label))
-
                 if d <= NEAR_THRESH_METRES:
-                    nearby_objects.append((d, label))
+                    nearby.append((d, label))
 
-            # Also calculate inter-object distances using Ultralytics approach
-            inter_distances = enhanced_calc.get_distances_between_objects(boxes)
-
-            # Debug output
+            # Debug output to stderr
             print(f"DEBUG: Detected {len(all_objects)} total objects", file=sys.stderr, flush=True)
             for dist, label in all_objects:
                 print(f"DEBUG: {label} at {dist:.1f}m", file=sys.stderr, flush=True)
+            print(f"DEBUG: {len(nearby)} objects within {NEAR_THRESH_METRES}m threshold", file=sys.stderr, flush=True)
 
-            # Log inter-object distances
-            if inter_distances:
-                print(f"DEBUG: Inter-object distances:", file=sys.stderr, flush=True)
-                for dist_info in inter_distances[:3]:  # Show first 3 pairs
-                    obj1, obj2 = dist_info['objects']
-                    est_dist = dist_info['estimated_distance']
-                    print(f"DEBUG: {obj1} to {obj2}: {est_dist:.1f}m", file=sys.stderr, flush=True)
+            inter = calc.get_distances_between_objects(boxes)
 
-            print(f"DEBUG: {len(nearby_objects)} objects within {NEAR_THRESH_METRES}m threshold", file=sys.stderr,
-                  flush=True)
+            if not nearby:
+                print("DEBUG: No nearby objects, removing trigger file", file=sys.stderr, flush=True)
+                if os.path.exists(TRIGGER_FILE):
+                    os.remove(TRIGGER_FILE)
+                continue
 
-        if not nearby_objects:
-            print("DEBUG: No nearby objects, removing trigger file", file=sys.stderr, flush=True)
-            os.remove(TRIGGER_FILE)
-            continue
+            sentence = create_response_text(nearby)
+            print(json.dumps({"text": sentence}, ensure_ascii=False), flush=True)
+            print(sentence, file=sys.stderr, flush=True)
 
-        # Create response for all nearby objects
-        sentence = create_response_text(nearby_objects)
-
-        # Send to stdout for piping to TTS
-        print(json.dumps({"text": sentence}, ensure_ascii=False), flush=True)
-        print(sentence, file=sys.stderr, flush=True)
-
-        # Write detailed feedback to file
-        try:
             response = {
                 "text": sentence,
-                "objects_detected": len(nearby_objects),
-                "details": [{"object": label, "distance_metres": round(float(dist), 1)} for dist, label in
-                            nearby_objects],
+                "objects_detected": len(nearby),
+                "details": [{"object": lbl, "distance_metres": round(float(dist), 1)} for dist, lbl in nearby],
                 "inter_object_distances": [
-                    {
-                        "object_pair": dist_info['objects'],
-                        "distance_metres": round(float(dist_info['estimated_distance']), 1)
-                    }
-                    for dist_info in inter_distances[:5]  # Include first 5 pairs
-                ] if 'inter_distances' in locals() else []
+                    {"object_pair": dist["objects"], "distance_metres": round(dist["estimated_distance"], 1)}
+                    for dist in inter[:5]
+                ]
             }
 
-            # Atomic write
+            # Atomic write using temp file
             temp_file = FEEDBACK_FILE + ".tmp"
             with open(temp_file, "w") as f:
                 json.dump(response, f)
                 f.flush()
                 os.fsync(f.fileno())
-
             os.rename(temp_file, FEEDBACK_FILE)
 
-        except Exception as e:
-            print(f"Error writing to feedback file: {e}", file=sys.stderr, flush=True)
-
     except Exception as e:
-        print(f"Error processing frame: {e}", file=sys.stderr, flush=True)
+        print(f"[ERROR] {e}", file=sys.stderr)
 
     finally:
-        # Remove trigger file to indicate completion
         if os.path.exists(TRIGGER_FILE):
             os.remove(TRIGGER_FILE)
