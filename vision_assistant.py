@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Complete Python-Only Vision Assistant for Visually Impaired
-Combines object detection, distance estimation, and TTS in one program
+Fixes overlapping TTS issue by implementing speech-aware detection
 """
 
 import cv2
@@ -15,27 +15,16 @@ import queue
 from ultralytics import YOLO
 
 # TTS Options - choose one based on your preference and system
-
-# Option 1: Piper TTS (same as your C++ version, but called from Python)
 import subprocess
 import tempfile
 
-# Option 2: gTTS (Google Text-to-Speech) - requires internet
-# from gtts import gTTS
-# import pygame
-
-# Option 3: pyttsx3 (offline, cross-platform)
-# import pyttsx3
-
-# Option 4: espeak (Linux only, very lightweight)
-# import subprocess
-
 class TTSEngine:
-    """Text-to-Speech engine with multiple backend options"""
+    """Text-to-Speech engine with speech state tracking"""
     
     def __init__(self, engine_type="piper"):
         self.engine_type = engine_type
         self.setup_engine()
+        self.is_speaking = threading.Event()  # Track if TTS is active
         
     def setup_engine(self):
         if self.engine_type == "piper":
@@ -50,23 +39,22 @@ class TTSEngine:
         elif self.engine_type == "pyttsx3":
             import pyttsx3
             self.engine = pyttsx3.init()
-            # Configure voice properties
             voices = self.engine.getProperty('voices')
             if voices:
-                self.engine.setProperty('voice', voices[0].id)  # Use first available voice
-            self.engine.setProperty('rate', 150)  # Speed of speech
-            self.engine.setProperty('volume', 0.9)  # Volume level
+                self.engine.setProperty('voice', voices[0].id)
+            self.engine.setProperty('rate', 150)
+            self.engine.setProperty('volume', 0.9)
             
         elif self.engine_type == "gtts":
             import pygame
             pygame.mixer.init()
             
         elif self.engine_type == "espeak":
-            # espeak is usually pre-installed on Linux
             pass
     
     def speak(self, text):
         """Speak the given text using the selected TTS engine"""
+        self.is_speaking.set()  # Mark as speaking
         try:
             if self.engine_type == "piper":
                 self._speak_piper(text)
@@ -78,17 +66,17 @@ class TTSEngine:
                 self._speak_espeak(text)
         except Exception as e:
             print(f"TTS Error: {e}", file=sys.stderr)
-            # Fallback to espeak if available
             try:
                 self._speak_espeak(text)
             except:
-                print(f"Speaking: {text}", file=sys.stderr)  # At least print it
+                print(f"Speaking: {text}", file=sys.stderr)
+        finally:
+            self.is_speaking.clear()  # Mark as finished speaking
     
     def _speak_piper(self, text):
         """Use Piper TTS (your current setup)"""
         json_input = json.dumps({"text": text})
         
-        # Create temporary files for audio
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_file:
             audio_file = tmp_file.name
         
@@ -100,13 +88,12 @@ class TTSEngine:
             stdout, stderr = process.communicate(input=json_input.encode())
             
             if process.returncode == 0:
-                # Play audio file
+                # Play audio file and wait for completion
                 subprocess.run(["aplay", audio_file], check=True)
             else:
                 print(f"Piper error: {stderr.decode()}", file=sys.stderr)
                 
         finally:
-            # Clean up temp file
             if os.path.exists(audio_file):
                 os.unlink(audio_file)
     
@@ -130,7 +117,6 @@ class TTSEngine:
             pygame.mixer.music.load(audio_file)
             pygame.mixer.music.play()
             
-            # Wait for playback to complete
             while pygame.mixer.music.get_busy():
                 time.sleep(0.1)
                 
@@ -143,22 +129,27 @@ class TTSEngine:
         subprocess.run(["espeak", text], check=True)
 
 class ImprovedDistanceEstimator:
-    """Improved distance estimation (from previous artifact)"""
+    """Improved distance estimation"""
     
     def __init__(self):
-        # Real-world object heights (your existing data)
+        # Real-world object heights
         self.REAL_HEIGHTS = {
             "Person": 1.70, "Car": 1.50, "Chair": 0.90, "Bicycle": 1.10,
             "Motorcycle": 1.30, "Bus": 3.00, "Truck": 3.50, 
             "Traffic Light": 3.00, "Stop Sign": 2.10, "Bench": 0.45,
-            # ... add all your existing heights
+            "Dog": 0.60, "Cat": 0.25, "Bottle": 0.25, "Cup": 0.12,
+            "Bowl": 0.08, "Laptop": 0.02, "Cell Phone": 0.15,
+            "Book": 0.03, "Clock": 0.30, "Vase": 0.25, "Scissors": 0.20,
+            "Teddy Bear": 0.30, "Hair Drier": 0.25, "Toothbrush": 0.18,
+            "Backpack": 0.50
         }
         
         # Real-world widths for dual estimation
         self.REAL_WIDTHS = {
             "Person": 0.50, "Car": 1.80, "Bicycle": 0.60, "Bus": 2.50,
             "Truck": 2.50, "Chair": 0.60, "Motorcycle": 0.80,
-            "Stop Sign": 0.75, "Bench": 1.50
+            "Stop Sign": 0.75, "Bench": 1.50, "Dog": 0.40, "Cat": 0.25,
+            "Backpack": 0.35
         }
         
         # Distance history for smoothing
@@ -233,7 +224,7 @@ class ImprovedDistanceEstimator:
         return sum(self.distance_history[label]) / len(self.distance_history[label])
 
 class VisionAssistant:
-    """Main vision assistant class"""
+    """Main vision assistant class with speech-aware detection"""
     
     def __init__(self, tts_engine="piper", model_path="./Insight/insight_deploy/models/yolo11n_object365.pt"):
         print("[INFO] Initializing Vision Assistant...")
@@ -250,14 +241,19 @@ class VisionAssistant:
         self.conf_threshold = 0.45
         self.near_threshold = 50.0  # meters
         self.detection_interval = 1.0  # seconds between detections
+        self.speech_pause_time = 0.5  # seconds to wait after speech ends
         
         # Initialize camera
         self.setup_camera()
         
-        # Threading for non-blocking TTS
+        # Threading for TTS with proper synchronization
         self.tts_queue = queue.Queue()
         self.tts_thread = threading.Thread(target=self._tts_worker, daemon=True)
         self.tts_thread.start()
+        
+        # Track last detection to avoid repetition
+        self.last_detection_time = 0
+        self.last_objects = []
         
         print("[INFO] Vision Assistant initialized successfully!")
     
@@ -277,13 +273,19 @@ class VisionAssistant:
         print("[INFO] Camera initialized")
     
     def _tts_worker(self):
-        """Background worker for TTS to avoid blocking"""
+        """Background worker for TTS with proper blocking"""
         while True:
             try:
                 text = self.tts_queue.get(timeout=1)
                 if text is None:  # Shutdown signal
                     break
-                self.tts.speak(text)
+                
+                print(f"[TTS] Speaking: {text}")
+                self.tts.speak(text)  # This blocks until speech is complete
+                
+                # Small pause after speech to prevent immediate overlap
+                time.sleep(self.speech_pause_time)
+                
                 self.tts_queue.task_done()
             except queue.Empty:
                 continue
@@ -291,18 +293,41 @@ class VisionAssistant:
                 print(f"TTS worker error: {e}", file=sys.stderr)
     
     def speak_async(self, text):
-        """Add text to TTS queue for non-blocking speech"""
+        """Add text to TTS queue for speech"""
         try:
-            # Clear queue if it's getting too long (skip old messages)
-            while self.tts_queue.qsize() > 2:
+            # Clear old messages if queue is getting long
+            while self.tts_queue.qsize() > 1:
                 try:
-                    self.tts_queue.get_nowait()
+                    old_text = self.tts_queue.get_nowait()
+                    print(f"[TTS] Skipping: {old_text}")
                 except queue.Empty:
                     break
             
             self.tts_queue.put(text)
         except Exception as e:
             print(f"Error queuing TTS: {e}", file=sys.stderr)
+    
+    def is_speaking(self):
+        """Check if TTS is currently active"""
+        return self.tts.is_speaking.is_set() or not self.tts_queue.empty()
+    
+    def objects_changed(self, new_objects):
+        """Check if detected objects have significantly changed"""
+        if len(new_objects) != len(self.last_objects):
+            return True
+        
+        # Sort both lists by distance for comparison
+        new_sorted = sorted(new_objects, key=lambda x: (x[1], x[0]))  # Sort by label, then distance
+        old_sorted = sorted(self.last_objects, key=lambda x: (x[1], x[0]))
+        
+        for (new_dist, new_label), (old_dist, old_label) in zip(new_sorted, old_sorted):
+            if new_label != old_label:
+                return True
+            # Consider changed if distance differs by more than 2 meters
+            if abs(new_dist - old_dist) > 2.0:
+                return True
+        
+        return False
     
     def create_response_text(self, nearby_objects):
         """Create natural language response for detected objects"""
@@ -318,9 +343,10 @@ class VisionAssistant:
         
         if len(nearby_objects) == 2:
             obj1, obj2 = nearby_objects
-            return f"There is a {obj1[1]} approximately {obj1[0]:.0f} metres ahead, and a {obj2[1]} at {obj2[0]:.0f} metres."
+            return f"There is a {label1} approximately {obj1[0]:.0f} metres ahead, and a {obj2[1]} at {obj2[0]:.0f} metres."
         
-        # For 3+ objects
+        # For 3+ objects, limit to 3 closest
+        nearby_objects = nearby_objects[:3]
         parts = []
         for i, (dist, label) in enumerate(nearby_objects):
             if i == 0:
@@ -334,8 +360,13 @@ class VisionAssistant:
     
     def process_frame(self):
         """Process single frame and return detection results"""
+        # Skip processing if TTS is active
+        if self.is_speaking():
+            print("[DEBUG] Skipping detection - TTS active")
+            return None
+        
         # Flush camera buffer to get fresh frame
-        for _ in range(3):
+        for _ in range(2):
             self.cap.read()
         
         ret, frame = self.cap.read()
@@ -360,15 +391,16 @@ class VisionAssistant:
                 nearby_objects.append((distance, label))
         
         # Debug output
-        print(f"DEBUG: Detected {len(all_objects)} total objects", file=sys.stderr)
-        for dist, label in all_objects:
-            print(f"DEBUG: {label} at {dist:.1f}m", file=sys.stderr)
-        print(f"DEBUG: {len(nearby_objects)} objects within {self.near_threshold}m", file=sys.stderr)
+        if all_objects:
+            print(f"[DEBUG] Detected {len(all_objects)} total objects")
+            for dist, label in all_objects[:5]:  # Show first 5
+                print(f"[DEBUG] {label} at {dist:.1f}m")
+            print(f"[DEBUG] {len(nearby_objects)} objects within {self.near_threshold}m")
         
         return nearby_objects
     
     def run(self):
-        """Main loop"""
+        """Main loop with speech-aware detection"""
         print("[INFO] Starting Vision Assistant...")
         
         # Power-on announcement
@@ -376,15 +408,27 @@ class VisionAssistant:
         
         try:
             while True:
-                nearby_objects = self.process_frame()
+                current_time = time.time()
                 
-                if nearby_objects:
-                    response_text = self.create_response_text(nearby_objects)
-                    if response_text:
-                        print(f"[INFO] {response_text}")
-                        self.speak_async(response_text)
+                # Only process if enough time has passed and not speaking
+                if (current_time - self.last_detection_time >= self.detection_interval and 
+                    not self.is_speaking()):
+                    
+                    nearby_objects = self.process_frame()
+                    
+                    if nearby_objects is not None:
+                        # Only announce if objects have changed significantly
+                        if self.objects_changed(nearby_objects):
+                            response_text = self.create_response_text(nearby_objects)
+                            if response_text:
+                                print(f"[INFO] {response_text}")
+                                self.speak_async(response_text)
+                                self.last_objects = nearby_objects.copy()
+                        
+                        self.last_detection_time = current_time
                 
-                time.sleep(self.detection_interval)
+                # Short sleep to prevent excessive CPU usage
+                time.sleep(0.1)
                 
         except KeyboardInterrupt:
             print("\n[INFO] Shutting down Vision Assistant...")
@@ -395,7 +439,7 @@ class VisionAssistant:
         """Clean up resources"""
         self.cap.release()
         self.tts_queue.put(None)  # Signal TTS worker to stop
-        self.tts_thread.join(timeout=2)
+        self.tts_thread.join(timeout=3)
         print("[INFO] Vision Assistant stopped")
 
 def main():
@@ -404,11 +448,6 @@ def main():
     # Configuration - adjust these based on your setup
     TTS_ENGINE = "piper"  # Options: "pyttsx3", "piper", "gtts", "espeak"
     MODEL_PATH = "./Insight/insight_deploy/models/yolo11n_object365.pt"
-    
-    # Alternative TTS engines you can try:
-    # TTS_ENGINE = "piper"    # Your current setup, high quality
-    # TTS_ENGINE = "gtts"     # Google TTS, requires internet, very natural
-    # TTS_ENGINE = "espeak"   # Very lightweight, robotic voice
     
     try:
         assistant = VisionAssistant(tts_engine=TTS_ENGINE, model_path=MODEL_PATH)
