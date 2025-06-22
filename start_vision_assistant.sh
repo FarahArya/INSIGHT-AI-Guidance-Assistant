@@ -4,7 +4,7 @@
 cd /home/rpi-farah/INSIGHT-AI-Guidance-Assistant
 
 # Activate virtual environment (adjust path if different)
-source venv/bin/activate
+source .venv/bin/activate
 
 # Wait for camera to be ready
 sleep 5
