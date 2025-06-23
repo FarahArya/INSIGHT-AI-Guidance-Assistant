@@ -80,6 +80,8 @@ class TTSEngine:
         
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_file:
             audio_file = tmp_file.name
+
+        player = "aplay"          # always use ALSA
         
         try:
             # Run Piper
