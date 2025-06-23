@@ -12,6 +12,7 @@ import os
 import sys
 import threading
 import queue
+import shutil
 from ultralytics import YOLO
 
 # TTS Options - choose one based on your preference and system
