@@ -89,7 +89,10 @@ class TTSEngine:
             
             if process.returncode == 0:
                 # Play audio file and wait for completion
-                subprocess.run(["aplay", audio_file], check=True)
+                #subprocess.run(["aplay", audio_file], check=True)
+                player = "paplay" if shutil.which("paplay") else "aplay"
+                subprocess.run([player, audio_file], check=True)
+
             else:
                 print(f"Piper error: {stderr.decode()}", file=sys.stderr)
                 
