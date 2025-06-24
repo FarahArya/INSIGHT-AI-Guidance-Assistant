@@ -77,6 +77,8 @@ class TTSEngine:
     def _speak_piper(self, text):
         """Use Piper TTS (your current setup)"""
         json_input = json.dumps({"text": text})
+
+        subprocess.run(["amixer", "-q", "sset", "Headphone", "90%"], check=False)
         
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_file:
             audio_file = tmp_file.name
