@@ -375,6 +375,7 @@ REAL_HEIGHTS = {
     "Curling": 0.90,
     "Table Tennis": 0.04
 }
+
 # ───────────────────────── CONFIG ──────────────────────────
 MODEL_DIR = os.getenv('MODEL_PATH', './models/yolo11n_object365.pt')
 LABELS = YOLO(MODEL_DIR).names
@@ -448,6 +449,7 @@ def estimate_distance(box, img_h, img_w):
         else:
             return 20.0
 
+
 def get_object_position(box, img_width, left_threshold=0.33, right_threshold=0.67):
     """
     Determine if an object is positioned left, right, or forward (center) in the frame.
@@ -477,64 +479,6 @@ def get_object_position(box, img_width, left_threshold=0.33, right_threshold=0.6
         return "right"
     else:
         return "forward"
-
-    def get_detailed_position(box, img_width, img_height):
-        """
-        Get more detailed position information including vertical position.
-
-        Args:
-            box: YOLO detection box object with xyxy coordinates
-            img_width: Width of the image frame
-            img_height: Height of the image frame
-
-        Returns:
-            dict: Dictionary with horizontal, vertical, and combined position info
-        """
-    x1, y1, x2, y2 = box.xyxy[0]
-
-    # Calculate center coordinates
-    center_x = (x1 + x2) / 2
-    center_y = (y1 + y2) / 2
-
-    # Normalize coordinates
-    norm_x = center_x / img_width
-    norm_y = center_y / img_height
-
-    # Horizontal position
-    if norm_x < 0.33:
-        horizontal = "left"
-    elif norm_x > 0.67:
-        horizontal = "right"
-    else:
-        horizontal = "center"
-
-    # Vertical position
-    if norm_y < 0.33:
-        vertical = "top"
-    elif norm_y > 0.67:
-        vertical = "bottom"
-    else:
-        vertical = "middle"
-
-    # Combined description
-    if horizontal == "center":
-        if vertical == "middle":
-            combined = "forward"
-        else:
-            combined = f"{vertical} forward"
-    else:
-        if vertical == "middle":
-            combined = horizontal
-        else:
-            combined = f"{vertical} {horizontal}"
-
-    return {
-        "horizontal": horizontal,
-        "vertical": vertical,
-        "combined": combined,
-        "normalized_x": float(norm_x),
-        "normalized_y": float(norm_y)
-    }
 
 
 def get_detailed_position(box, img_width, img_height):
@@ -596,30 +540,6 @@ def get_detailed_position(box, img_width, img_height):
     }
 
 
-def create_response_text(nearby_objects):
-    """Create natural language response for all nearby objects"""
-    if len(nearby_objects) == 1:
-        dist, label = nearby_objects[0]
-        return f"There is a {label} approximately {dist:.1f} metres ahead."
-    
-    # Sort by distance for better readability
-    nearby_objects.sort(key=lambda x: x[0])
-    
-    if len(nearby_objects) == 2:
-        obj1, obj2 = nearby_objects
-        return f"There is a {obj1[1]} approximately {obj1[0]:.1f} metres ahead, and a {obj2[1]} at {obj2[0]:.1f} metres."
-    
-    # For 3+ objects
-    parts = []
-    for i, (dist, label) in enumerate(nearby_objects):
-        if i == 0:
-            parts.append(f"There is a {label} at {dist:.1f} metres")
-        elif i == len(nearby_objects) - 1:
-            parts.append(f"and a {label} at {dist:.1f} metres ahead")
-        else:
-            parts.append(f"a {label} at {dist:.1f} metres")
-    
-    return ", ".join(parts) + "."
 def enhanced_create_response_text(nearby_objects, frame_width, frame_height):
     """
     Enhanced version that includes position information
@@ -631,60 +551,87 @@ def enhanced_create_response_text(nearby_objects, frame_width, frame_height):
         dist, label, box = nearby_objects[0]
         position = get_object_position(box, frame_width)
         return f"There is a {label} approximately {dist:.1f} metres {position}."
+
+    # Sort by distance for better readability
+    nearby_objects.sort(key=lambda x: x[0])
+
+    if len(nearby_objects) == 2:
+        obj1, obj2 = nearby_objects
+        pos1 = get_object_position(obj1[2], frame_width)
+        pos2 = get_object_position(obj2[2], frame_width)
+        return f"There is a {obj1[1]} approximately {obj1[0]:.1f} metres {pos1}, and a {obj2[1]} at {obj2[0]:.1f} metres {pos2}."
+
+    # For 3+ objects
+    parts = []
+    for i, (dist, label, box) in enumerate(nearby_objects):
+        position = get_object_position(box, frame_width)
+        if i == 0:
+            parts.append(f"There is a {label} at {dist:.1f} metres {position}")
+        elif i == len(nearby_objects) - 1:
+            parts.append(f"and a {label} at {dist:.1f} metres {position}")
+        else:
+            parts.append(f"a {label} at {dist:.1f} metres {position}")
+
+    return ", ".join(parts) + "."
+
+
+# Main loop
 while True:
     # Wait for trigger
     while not os.path.exists(TRIGGER_FILE):
         time.sleep(0.05)
-    
+
     # Flush camera buffer to get fresh frame
     for _ in range(3):  # Clear 3 stale frames
         cap.read()
-    
+
     ok, frame = cap.read()  # Get fresh frame
     if not ok:
         continue
-    
+
     res = model(frame, imgsz=640, conf=CONF_THRES)[0]
     h = frame.shape[0]
-    
+    w = frame.shape[1]
+
     # Get all objects with their distances
     nearby_objects = []
     all_objects = []  # For debugging
-    
+
     for b in res.boxes:
-        d = estimate_distance(b, h, frame.shape[1])
+        d = estimate_distance(b, h, w)
         label = LABELS[int(b.cls[0])]
-        position = get_object_position(b, frame.shape[1])
-        all_objects.append((d, label,position))
-        
-        if d <= NEAR_THRESH_METRES:  # Keep this as-is (already inclusive)
-            nearby_objects.append((d, label,b))
-    
+        position = get_object_position(b, w)
+        all_objects.append((d, label, position))
+
+        if d <= NEAR_THRESH_METRES:
+            nearby_objects.append((d, label, b))  # Store box for position calculation
+
     # Debug output to stderr
     print(f"DEBUG: Detected {len(all_objects)} total objects", file=sys.stderr, flush=True)
-    for dist, label in all_objects:
-        print(f"DEBUG: {label} at {dist:.1f}m", file=sys.stderr, flush=True)
+    for dist, label, position in all_objects:
+        print(f"DEBUG: {label} at {dist:.1f}m {position}", file=sys.stderr, flush=True)
     print(f"DEBUG: {len(nearby_objects)} objects within {NEAR_THRESH_METRES}m threshold", file=sys.stderr, flush=True)
-    
+
     if not nearby_objects:
         print("DEBUG: No nearby objects, removing trigger file", file=sys.stderr, flush=True)
         os.remove(TRIGGER_FILE)
         continue
-    
+
     # Create response for all nearby objects
-    sentence = enhanced_create_response_text(nearby_objects, frame.shape[1], frame.shape[0])
-    
+    sentence = enhanced_create_response_text(nearby_objects, w, h)
+
     # Send to stdout for piping to TTS
     print(json.dumps({"text": sentence}, ensure_ascii=False), flush=True)
     # Human-readable log to stderr
     print(sentence, file=sys.stderr, flush=True)
-    
+
     # Write detailed feedback to file (atomic write using temp file)
     try:
         response = {
             "text": sentence,
             "objects_detected": len(nearby_objects),
-            "details": [{"object": label, "distance_metres": dist} for dist, label in nearby_objects]
+            "details": [{"object": label, "distance_metres": dist, "position": get_object_position(box, w)}
+                        for dist, label, box in nearby_objects]
         }
         # Write to temp file first, then atomic rename
         temp_file = FEEDBACK_FILE + ".tmp"
@@ -692,13 +639,13 @@ while True:
             json.dump(response, f)
             f.flush()  # Ensure data is written to disk
             os.fsync(f.fileno())  # Force write to disk
-        
+
         # Atomic rename - this prevents C++ from reading partial files
         os.rename(temp_file, FEEDBACK_FILE)
-        
+
     except Exception as e:
         print(f"Error writing to feedback file: {e}", file=sys.stderr, flush=True)
-    
+
     # Remove trigger file to indicate completion
     if os.path.exists(TRIGGER_FILE):
         os.remove(TRIGGER_FILE)
