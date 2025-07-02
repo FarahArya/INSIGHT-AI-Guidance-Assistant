@@ -516,67 +516,67 @@ class ImprovedDistanceEstimator:
         }
 
         # Real-world widths for dual estimation
-self.REAL_WIDTHS = {
-    # People and animals
-    "Person": 0.50, "Dog": 0.40, "Cat": 0.25, "Horse": 0.60,
-    "Cow": 0.60, "Sheep": 0.40, "Monkey": 0.30, "Bear": 0.90,
-    "Elephant": 1.50, "Zebra": 0.50, "Giraffe": 0.80, "Deer": 0.50,
-    "Duck": 0.20, "Pigeon": 0.20, "Wild Bird": 0.25, "Penguin": 0.30,
-    "Parrot": 0.20, "Swan": 0.50, "Goose": 0.40, "Chicken": 0.25,
-    "Pig": 0.40, "Camel": 0.70, "Antelope": 0.50, "Seal": 0.60,
-    "Dolphin": 0.40, "Lion": 0.60, "Donkey": 0.40, "Yak": 0.70,
-    "Rabbit": 0.20,
+        self.REAL_WIDTHS = {
+            # People and animals
+            "Person": 0.50, "Dog": 0.40, "Cat": 0.25, "Horse": 0.60,
+            "Cow": 0.60, "Sheep": 0.40, "Monkey": 0.30, "Bear": 0.90,
+            "Elephant": 1.50, "Zebra": 0.50, "Giraffe": 0.80, "Deer": 0.50,
+            "Duck": 0.20, "Pigeon": 0.20, "Wild Bird": 0.25, "Penguin": 0.30,
+            "Parrot": 0.20, "Swan": 0.50, "Goose": 0.40, "Chicken": 0.25,
+            "Pig": 0.40, "Camel": 0.70, "Antelope": 0.50, "Seal": 0.60,
+            "Dolphin": 0.40, "Lion": 0.60, "Donkey": 0.40, "Yak": 0.70,
+            "Rabbit": 0.20,
 
-    # Vehicles
-    "Car": 1.80, "SUV": 1.95, "Bus": 2.50, "Truck": 2.50,
-    "Heavy Truck": 2.60, "Van": 2.00, "Motorcycle": 0.80, "Bicycle": 0.60,
-    "Scooter": 0.70, "Train": 3.00, "Fire Truck": 2.50,
-    "Ambulance": 2.30, "Sports Car": 1.85, "Pickup Truck": 2.00,
-    "Formula 1": 1.90, "Tricycle": 0.60, "Trolley": 0.60,
-    "Machinery Vehicle": 2.40,
+            # Vehicles
+            "Car": 1.80, "SUV": 1.95, "Bus": 2.50, "Truck": 2.50,
+            "Heavy Truck": 2.60, "Van": 2.00, "Motorcycle": 0.80, "Bicycle": 0.60,
+            "Scooter": 0.70, "Train": 3.00, "Fire Truck": 2.50,
+            "Ambulance": 2.30, "Sports Car": 1.85, "Pickup Truck": 2.00,
+            "Formula 1": 1.90, "Tricycle": 0.60, "Trolley": 0.60,
+            "Machinery Vehicle": 2.40,
 
-    # Furniture
-    "Chair": 0.45, "Table": 0.80, "Desk": 0.75, "Bed": 1.60,
-    "Couch": 2.00, "Cabinet/shelf": 0.60, "Bench": 1.20,
-    "Dining Table": 1.20, "Coffee Table": 0.90, "Nightstand": 0.45,
-    "Side Table": 0.45, "Stool": 0.35,
+            # Furniture
+            "Chair": 0.45, "Table": 0.80, "Desk": 0.75, "Bed": 1.60,
+            "Couch": 2.00, "Cabinet/shelf": 0.60, "Bench": 1.20,
+            "Dining Table": 1.20, "Coffee Table": 0.90, "Nightstand": 0.45,
+            "Side Table": 0.45, "Stool": 0.35,
 
-    # Electronics
-    "TV": 1.20, "Monitor/TV": 0.80, "Laptop": 0.35, "Computer Box": 0.35,
-    "Printer": 0.40, "Speaker": 0.25, "Microwave": 0.45,
-    "Refrigerator": 0.80, "Air Conditioner": 0.90, "Router/modem": 0.20,
-    "Cell Phone": 0.07, "Telephone": 0.15, "Calculator": 0.10,
+            # Electronics
+            "TV": 1.20, "Monitor/TV": 0.80, "Laptop": 0.35, "Computer Box": 0.35,
+            "Printer": 0.40, "Speaker": 0.25, "Microwave": 0.45,
+            "Refrigerator": 0.80, "Air Conditioner": 0.90, "Router/modem": 0.20,
+            "Cell Phone": 0.07, "Telephone": 0.15, "Calculator": 0.10,
 
-    # Sports equipment
-    "Basketball": 0.24, "Soccer": 0.22, "Tennis": 0.06,
-    "Baseball Bat": 0.07, "Golf Club": 0.10, "Hockey Stick": 0.08,
-    "Tennis Racket": 0.30, "Skateboard": 0.20, "Surfboard": 0.60,
-    "Snowboard": 0.30, "Skiboard": 0.15,
+            # Sports equipment
+            "Basketball": 0.24, "Soccer": 0.22, "Tennis": 0.06,
+            "Baseball Bat": 0.07, "Golf Club": 0.10, "Hockey Stick": 0.08,
+            "Tennis Racket": 0.30, "Skateboard": 0.20, "Surfboard": 0.60,
+            "Snowboard": 0.30, "Skiboard": 0.15,
 
-    # Containers
-    "Backpack": 0.35, "Luggage": 0.45, "Handbag/Satchel": 0.35,
-    "Storage box": 0.40, "Trash bin Can": 0.45, "Basket": 0.35,
-    "Bowl/Basin": 0.25, "Barrel/bucket": 0.40,
+            # Containers
+            "Backpack": 0.35, "Luggage": 0.45, "Handbag/Satchel": 0.35,
+            "Storage box": 0.40, "Trash bin Can": 0.45, "Basket": 0.35,
+            "Bowl/Basin": 0.25, "Barrel/bucket": 0.40,
 
-    # Infrastructure
-    "Traffic Light": 0.30, "Stop Sign": 0.75, "Fire Hydrant": 0.40,
-    "Parking meter": 0.25, "Street Lights": 0.30, "Traffic Sign": 0.60,
-    "Traffic cone": 0.30, "Crosswalk Sign": 0.60,
+            # Infrastructure
+            "Traffic Light": 0.30, "Stop Sign": 0.75, "Fire Hydrant": 0.40,
+            "Parking meter": 0.25, "Street Lights": 0.30, "Traffic Sign": 0.60,
+            "Traffic cone": 0.30, "Crosswalk Sign": 0.60,
 
-    # Architectural elements
-    "door": 0.90, "window": 1.20, "wall": 0.30,
-    "Sink": 0.60, "Toilet": 0.60, "Bathtub": 1.50,
-    "Urinal": 0.35, "Showerhead": 0.15,
+            # Architectural elements
+            "door": 0.90, "window": 1.20, "wall": 0.30,
+            "Sink": 0.60, "Toilet": 0.60, "Bathtub": 1.50,
+            "Urinal": 0.35, "Showerhead": 0.15,
 
-    # Appliances
-    "Washing Machine/Drying Machine": 0.60, "Dishwasher": 0.60,
-    "Oven": 0.60, "Gas stove": 0.60, "Rice Cooker": 0.30,
-    "Coffee Machine": 0.25, "Toaster": 0.30, "Blender": 0.20,
-    "Electric Drill": 0.10, "Hair Dryer": 0.15,
+            # Appliances
+            "Washing Machine/Drying Machine": 0.60, "Dishwasher": 0.60,
+            "Oven": 0.60, "Gas stove": 0.60, "Rice Cooker": 0.30,
+            "Coffee Machine": 0.25, "Toaster": 0.30, "Blender": 0.20,
+            "Electric Drill": 0.10, "Hair Dryer": 0.15,
 
-    # Default fallback
-    "default": 0.30
-}
+            # Default fallback
+            "default": 0.30
+        }
 
         # Distance history for smoothing
         self.distance_history = {}
@@ -1077,7 +1077,7 @@ def main():
     # Configuration - adjust paths based on your setup
     TTS_ENGINE = "piper"
     MAIN_MODEL_PATH = "./Insight/insight_deploy/models/yolo11n_object365.pt"
-    ARCHITECTURAL_MODEL_PATH = "./Insight/insight_deploy/models/best3.pt"  # Path to your architecture model
+    ARCHITECTURAL_MODEL_PATH = "./Insight/insight_deploy/models/architectural_model.pt"  # Path to your architecture model
 
     # Check if architectural model exists
     if not os.path.exists(ARCHITECTURAL_MODEL_PATH):
