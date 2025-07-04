@@ -205,15 +205,6 @@ TTSConfig(engine="new_engine")
    - Object detection result pruning
    - TTS audio file cleanup
 
-## Troubleshooting Guide
-
-| Issue | Solution |
-|-------|----------|
-| **Camera not initializing** | Check Pi camera permissions: `sudo raspi-config` → Interface Options → Camera |
-| **Model loading fails** | Verify model paths in `config.py` and file permissions |
-| **Low FPS** | Reduce camera resolution in `config.py` or increase detection interval |
-| **Audio distortion** | Adjust headphone volume: `amixer -q sset Headphone 90%` |
-| **Missing objects** | Lower confidence threshold in `config.py` |
 
 ## Directory Structure
 ```
@@ -234,24 +225,5 @@ vision_assistant/
     └── processor.py      # Frame processing
 ```
 
-## Extension Points
-1. **Add New Sensors**:
-   - Implement in `utils/sensors.py`
-   - Integrate with main processing loop
-
-2. **Implement Object Tracking**:
-   - Create `vision/tracker.py`
-   - Use ByteTrack or similar algorithm
-
-3. **Add Spatial Audio**:
-   - Modify `tts/base.py` to support 3D audio
-   - Integrate HRTF processing
-
-4. **Cloud Integration**:
-   - Create `cloud/aws.py` or `cloud/azure.py`
-   - Add fallback to cloud-based vision
-
-## License
-Apache 2.0 License - See LICENSE file for details
 
 > **Note**: This documentation covers the core architecture and key components. For implementation details, refer to source code comments in each module. The system is designed so developers can work on individual components without needing deep knowledge of the entire codebase.
