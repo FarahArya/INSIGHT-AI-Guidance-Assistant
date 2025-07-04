@@ -5,7 +5,7 @@ import logging
 import os
 from typing import List, Tuple
 from config import AppConfig
-from tts.pi import PiperTTS
+from tts.piper import PiperTTS
 from vision import DualModelManager, DistanceEstimator, FrameProcessor
 from utils.camera import Camera
 from utils.threading import TTSWorker
