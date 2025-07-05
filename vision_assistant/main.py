@@ -118,42 +118,63 @@ class VisionAssistant:
 
         return False
 
+    # main.py - Modified _create_announcement method
+
     def _create_announcement(self, objects: List[Tuple[float, str, any, str]]) -> str:
-        """Create natural language announcement with detailed positions"""
+        """Create natural language announcement with detailed positions including unknown objects"""
         if not objects:
             return "No objects detected nearby."
 
         # Sort by distance and importance (closest first)
         objects.sort(key=lambda x: x[0])
 
+        # Separate known and unknown objects
+        known_objects = [obj for obj in objects if obj[1] != "unknown object"]
+        unknown_objects = [obj for obj in objects if obj[1] == "unknown object"]
+
         # Prioritize doors and walls that are close
         priority_objects = [
-            obj for obj in objects
+            obj for obj in known_objects
             if obj[1] in ["door", "wall"] and obj[0] < 3.0
         ]
 
-        # Use priority objects if available, otherwise use top 3 closest
-        if priority_objects:
-            objects = priority_objects[:3]
-        else:
-            objects = objects[:3]
+        # Build announcement prioritizing known objects
+        announcement_objects = []
 
-        if len(objects) == 1:
-            dist, label, _, position = objects[0]
-            return f"There is a {label} approximately {dist:.1f} meters {position}."
+        if priority_objects:
+            # Use priority objects first
+            announcement_objects.extend(priority_objects[:2])
+            remaining_slots = 3 - len(announcement_objects)
+        else:
+            # Use closest known objects
+            announcement_objects.extend(known_objects[:2])
+            remaining_slots = 3 - len(announcement_objects)
+
+        # Add unknown objects if we have remaining slots and they're close
+        if remaining_slots > 0 and unknown_objects:
+            close_unknown = [obj for obj in unknown_objects if obj[0] < 5.0]  # Conservative distance
+            announcement_objects.extend(close_unknown[:remaining_slots])
+
+        if len(announcement_objects) == 1:
+            dist, label, _, position = announcement_objects[0]
+            if label == "unknown object":
+                return f"There is an unknown object approximately {dist:.1f} meters {position}."
+            else:
+                return f"There is a {label} approximately {dist:.1f} meters {position}."
 
         # Create announcement with combined position information
         parts = []
-        for i, (dist, label, _, position) in enumerate(objects):
+        for i, (dist, label, _, position) in enumerate(announcement_objects):
+            article = "an" if label == "unknown object" else "a"
+
             if i == 0:
-                parts.append(f"There is a {label} at {dist:.1f} meters {position}")
-            elif i == len(objects) - 1:
-                parts.append(f"and a {label} at {dist:.1f} meters {position}")
+                parts.append(f"There is {article} {label} at {dist:.1f} meters {position}")
+            elif i == len(announcement_objects) - 1:
+                parts.append(f"and {article} {label} at {dist:.1f} meters {position}")
             else:
-                parts.append(f"a {label} at {dist:.1f} meters {position}")
+                parts.append(f"{article} {label} at {dist:.1f} meters {position}")
 
         return ", ".join(parts) + "."
-
     def speak_async(self, text: str):
         """Add text to TTS queue"""
         if text and not self.is_speaking():
