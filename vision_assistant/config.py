@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 @dataclass
 class TTSConfig:
     engine: str = "piper"
-    piper_path: str = "./piper/piper"
+    piper_path: str = "../piper/piper"
     piper_model: str = "../piper/voices/en_US-amy-medium/en_US-amy-medium.onnx"
     piper_config: str = "../piper/voices/en_US-amy-medium/en_US-amy-medium.onnx.json"
     speech_rate: int = 150
