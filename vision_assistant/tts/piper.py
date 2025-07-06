@@ -26,27 +26,46 @@ class PiperTTS(BaseTTS):
         # Remove the JSON wrapper - send plain text directly
         subprocess.run(["amixer", "-q", "sset", "Headphone", "90%"], check=False)
 
-        with tempfile.NamedTemporaryFile(suffix='.wav', delete=True) as tmp_file:
-            cmd = [
-                self.config.piper_path,
-                "--model", self.config.piper_model,
-                "--config", self.config.piper_config,
-                "--output_file", tmp_file.name
-            ]
+        # Piper command to output to stdout
+        piper_cmd = [
+            self.config.piper_path,
+            "--model", self.config.piper_model,
+            "--config", self.config.piper_config,
+            "--output_file", "-"  # Output to stdout
+        ]
 
-            process = subprocess.Popen(
-                cmd,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-            # Send plain text instead of JSON
-            stdout, stderr = process.communicate(input=text.encode())
+        # aplay command to read from stdin
+        aplay_cmd = ["aplay", "-"]
 
-            if process.returncode == 0:
-                subprocess.run(["aplay", tmp_file.name], check=True)
-            else:
-                raise RuntimeError(f"Piper error: {stderr.decode()}")
+        # Create the pipeline: piper | aplay
+        piper_process = subprocess.Popen(
+            piper_cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+
+        aplay_process = subprocess.Popen(
+            aplay_cmd,
+            stdin=piper_process.stdout,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+
+        # Close piper's stdout in the parent process so aplay can receive EOF
+        piper_process.stdout.close()
+
+        # Send text to piper
+        piper_stdout, piper_stderr = piper_process.communicate(input=text.encode())
+
+        # Wait for aplay to finish
+        aplay_stdout, aplay_stderr = aplay_process.communicate()
+
+        # Check for errors
+        if piper_process.returncode != 0:
+            raise RuntimeError(f"Piper error: {piper_stderr.decode()}")
+        if aplay_process.returncode != 0:
+            raise RuntimeError(f"aplay error: {aplay_stderr.decode()}")
 
     def stop(self):
         subprocess.run(["pkill", "-f", "aplay"], check=False)
