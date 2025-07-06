@@ -23,7 +23,7 @@ class PiperTTS(BaseTTS):
             self.is_speaking.clear()
 
     def _speak_piper(self, text: str):
-        json_input = json.dumps({"text": text})
+        # Remove the JSON wrapper - send plain text directly
         subprocess.run(["amixer", "-q", "sset", "Headphone", "90%"], check=False)
 
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=True) as tmp_file:
@@ -40,7 +40,8 @@ class PiperTTS(BaseTTS):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
             )
-            stdout, stderr = process.communicate(input=json_input.encode())
+            # Send plain text instead of JSON
+            stdout, stderr = process.communicate(input=text.encode())
 
             if process.returncode == 0:
                 subprocess.run(["aplay", tmp_file.name], check=True)
