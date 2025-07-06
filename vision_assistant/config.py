@@ -1,5 +1,5 @@
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass,field
 
 
 @dataclass
@@ -28,9 +28,12 @@ class VisionConfig:
     real_widths: dict = None
 
 
+# @dataclass
+# class AppConfig:
+#     tts: TTSConfig = TTSConfig()
 @dataclass
 class AppConfig:
-    tts: TTSConfig = TTSConfig()
+    tts: TTSConfig = field(default_factory=TTSConfig)  # This works
     vision: VisionConfig = VisionConfig(
         real_heights={
             "Person": 1.70,
