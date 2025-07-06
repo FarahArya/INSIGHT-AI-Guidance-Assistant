@@ -6,7 +6,10 @@ import os
 from typing import List, Tuple
 from config import AppConfig
 from tts.piper import PiperTTS
-from vision import DualModelManager, DistanceEstimator, FrameProcessor
+# from vision import DualModelManager, DistanceEstimator, FrameProcessor
+from vision.models import DualModelManager
+from vision.distance import DistanceEstimator
+from vision.processor import FrameProcessor
 from utils.camera import Camera
 from utils.threading import TTSWorker
 
