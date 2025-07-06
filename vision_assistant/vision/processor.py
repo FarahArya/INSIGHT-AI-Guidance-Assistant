@@ -1,8 +1,8 @@
 # vision/processor.py - Modified version
 from typing import List, Tuple, Optional
-from distance import DistanceEstimator, PositionInfo
-from models import DualModelManager
-from unknown_detector import UnknownObjectDetector
+from .distance import DistanceEstimator, PositionInfo
+from .models import DualModelManager
+from .unknown_detector import UnknownObjectDetector
 import logging
 
 logger = logging.getLogger(__name__)
