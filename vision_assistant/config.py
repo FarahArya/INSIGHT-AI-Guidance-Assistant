@@ -6,16 +6,16 @@ from dataclasses import dataclass, field
 class TTSConfig:
     engine: str = "piper"
     piper_path: str = "./piper/piper"
-    piper_model: str = "./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx"
-    piper_config: str = "./piper/voices/en_US-amy-medium/en_US-amy-medium.onnx.json"
+    piper_model: str = "../piper/voices/en_US-amy-medium/en_US-amy-medium.onnx"
+    piper_config: str = "../piper/voices/en_US-amy-medium/en_US-amy-medium.onnx.json"
     speech_rate: int = 150
     volume: float = 0.9
 
 
 @dataclass
 class VisionConfig:
-    main_model_path: str = "./Insight/insight_deploy/models/yolo11n_object365.pt"
-    architectural_model_path: str = "./Insight/insight_deploy/models/architectural_model.pt"
+    main_model_path: str = "../Insight/insight_deploy/models/yolo11n_object365.pt"
+    architectural_model_path: str = "../Insight/insight_deploy/models/architectural_model.pt"
     conf_threshold: float = 0.45
     near_threshold: float = 6.0  # meters
     arch_near_threshold: float = 4.0
