@@ -1,14 +1,13 @@
-# vision/processor.py - Modified version
 from typing import List, Tuple, Optional
 from .distance import DistanceEstimator, PositionInfo
-from .models import DualModelManager
+from .models import SingleModelManager
 from .unknown_detector import UnknownObjectDetector
 import logging
 
 logger = logging.getLogger(__name__)
 
 class FrameProcessor:
-    def __init__(self, model_manager: DualModelManager, distance_estimator: DistanceEstimator):
+    def __init__(self, model_manager: SingleModelManager, distance_estimator: DistanceEstimator):
         self.model_manager = model_manager
         self.distance_estimator = distance_estimator
 
@@ -21,9 +20,9 @@ class FrameProcessor:
             detection_frequency=4   # Only check every 4th frame
         )
 
-    def process(self, frame) -> Tuple[List[Tuple], Optional[str]]:
+    def process(self, frame) -> List[Tuple]:
         """Process frame and return detected objects with unknown object detection"""
-        results, model_info = self.model_manager.detect(frame)
+        results, model_info = self.model_manager.detect(frame, conf_threshold=0.35)
         objects = []
         known_boxes = []  # Track known object locations
 
@@ -67,9 +66,5 @@ class FrameProcessor:
             except Exception as e:
                 logger.warning(f"Unknown object detection failed: {e}")
 
-        # Check if we should switch models for next detection
-        model_switched = self.model_manager.should_switch()
-        model_type = model_info.model_type if model_switched else None
-
-        logger.debug(f"Detected {len(objects)} objects ({len([o for o in objects if o[1] == 'unknown object'])} unknown) with {model_info.model_type} model")
-        return objects, model_type
+        logger.debug(f"Detected {len(objects)} objects ({len([o for o in objects if o[1] == 'unknown object'])} unknown)")
+        return objects

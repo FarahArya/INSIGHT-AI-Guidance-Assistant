@@ -16,49 +16,49 @@ class TTSConfig:
 class VisionConfig:
     main_model_path: str = "../Insight/insight_deploy/models/best_custom_trained_model.yolo11n.pt"
     conf_threshold: float = 0.45
-    near_threshold: float = 6.0  # meters
-    arch_near_threshold: float = 4.0
+    near_threshold: float = 6.0  # Single threshold for all objects
     detection_interval: float = 1.5
-    model_switch_interval: int = 5
     camera_width: int = 480
     camera_height: int = 360
     camera_fps: int = 15
+
+    # Updated class names to match the new model (capitalized)
     real_heights: dict = field(default_factory=lambda: {
         "Person": 1.70,
         "Car": 1.50,
         "Door": 2.00,
-        "Sofa": 0.80,  # Same as "Couch" in example
+        "Sofa": 0.80,
         "Chair": 0.90,
-        "Table": 0.75,  # Typical dining table height
+        "Table": 0.75,
         "Lamp": 1.20,
-        "TV": 0.50,  # From "Monitor/TV"
+        "TV": 0.50,
         "Laptop": 0.03,
-        "Wardrobe": 2.00,  # Typical wardrobe height
+        "Wardrobe": 2.00,
         "Window": 1.50,
         "Potted Plant": 0.60,
-        "Photo Frame": 0.40,  # From "Picture/Frame"
+        "Photo Frame": 0.40,
         "Bed": 0.60,
         "Wall": 3.00,
-        "Stairs": 3.00  # Floo
+        "Stairs": 3.00
     })
+
     real_widths: dict = field(default_factory=lambda: {
         "Person": 0.50,
         "Car": 1.80,
         "Door": 0.90,
-        "Sofa": 2.00,  # Same as "Couch" in example
+        "Sofa": 2.00,
         "Chair": 0.45,
-        "Table": 0.80,  # Typical table width
-        "Lamp": 0.30,  # Default width for lamps
+        "Table": 0.80,
+        "Lamp": 0.30,
         "TV": 1.20,
         "Laptop": 0.35,
-        "Wardrobe": 0.60,  # Typical wardrobe depth
+        "Wardrobe": 0.60,
         "Window": 1.20,
-        "Potted Plant": 0.35,  # Typical planter width
-        "Photo Frame": 0.30,  # Standard frame width
+        "Potted Plant": 0.35,
+        "Photo Frame": 0.30,
         "Bed": 1.60,
-        "Wall": 0.30,  # Wall thickness
+        "Wall": 0.30,
         "Stairs": 1.20,
-        # Default fallback
         "default": 0.30
     })
 

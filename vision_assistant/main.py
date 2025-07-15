@@ -6,8 +6,7 @@ import os
 from typing import List, Tuple
 from config import AppConfig
 from tts.piper import PiperTTS
-# from vision import DualModelManager, DistanceEstimator, FrameProcessor
-from vision.models import DualModelManager
+from vision.models import SingleModelManager  # Updated import
 from vision.distance import DistanceEstimator
 from vision.processor import FrameProcessor
 from utils.camera import Camera
@@ -20,13 +19,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 class VisionAssistant:
     def __init__(self, config: AppConfig):
         self.config = config
         self.setup_components()
         self.last_detection_time = 0
         self.last_objects = []
-        self.last_model_type = None
 
     def setup_components(self):
         """Initialize all system components"""
@@ -42,10 +41,9 @@ class VisionAssistant:
             self.config.vision.real_widths
         )
 
-        self.model_manager = DualModelManager(
-            self.config.vision.main_model_path,
-            self.config.vision.architectural_model_path,
-            self.config.vision.model_switch_interval
+        # Use single model instead of dual model
+        self.model_manager = SingleModelManager(
+            self.config.vision.main_model_path
         )
 
         self.processor = FrameProcessor(self.model_manager, distance_estimator)
@@ -71,13 +69,10 @@ class VisionAssistant:
                     if frame is None:
                         continue
 
-                    objects, model_switched = self.processor.process(frame)
-                    # If we switched model, note the model type for this detection
-                    if model_switched:
-                        self.last_model_type = model_switched
+                    objects, model_info = self.processor.process(frame)
 
-                    # Filter nearby objects based on model type
-                    threshold = self.config.vision.arch_near_threshold if self.last_model_type == "architecture" else self.config.vision.near_threshold
+                    # Use single threshold for all objects
+                    threshold = self.config.vision.near_threshold
                     nearby_objects = [obj for obj in objects if obj[0] <= threshold]
 
                     if self._should_announce(nearby_objects):
@@ -121,8 +116,6 @@ class VisionAssistant:
 
         return False
 
-    # main.py - Modified _create_announcement method
-
     def _create_announcement(self, objects: List[Tuple[float, str, any, str]]) -> str:
         """Create natural language announcement with detailed positions including unknown objects"""
         if not objects:
@@ -138,7 +131,7 @@ class VisionAssistant:
         # Prioritize doors and walls that are close
         priority_objects = [
             obj for obj in known_objects
-            if obj[1] in ["door", "wall"] and obj[0] < 3.0
+            if obj[1] in ["Door", "Wall"] and obj[0] < 3.0  # Updated to match new class names
         ]
 
         # Build announcement prioritizing known objects
@@ -155,7 +148,7 @@ class VisionAssistant:
 
         # Add unknown objects if we have remaining slots and they're close
         if remaining_slots > 0 and unknown_objects:
-            close_unknown = [obj for obj in unknown_objects if obj[0] < 5.0]  # Conservative distance
+            close_unknown = [obj for obj in unknown_objects if obj[0] < 5.0]
             announcement_objects.extend(close_unknown[:remaining_slots])
 
         if len(announcement_objects) == 1:
@@ -163,21 +156,27 @@ class VisionAssistant:
             if label == "unknown object":
                 return f"There is an unknown object approximately {dist:.1f} meters {position}."
             else:
-                return f"There is a {label} approximately {dist:.1f} meters {position}."
+                # Convert to lowercase for natural speech
+                article = "an" if label.lower()[0] in 'aeiou' else "a"
+                return f"There is {article} {label.lower()} approximately {dist:.1f} meters {position}."
 
         # Create announcement with combined position information
         parts = []
         for i, (dist, label, _, position) in enumerate(announcement_objects):
-            article = "an" if label == "unknown object" else "a"
+            if label == "unknown object":
+                article = "an unknown object"
+            else:
+                article = f"{'an' if label.lower()[0] in 'aeiou' else 'a'} {label.lower()}"
 
             if i == 0:
-                parts.append(f"There is {article} {label} at {dist:.1f} meters {position}")
+                parts.append(f"There is {article} at {dist:.1f} meters {position}")
             elif i == len(announcement_objects) - 1:
-                parts.append(f"and {article} {label} at {dist:.1f} meters {position}")
+                parts.append(f"and {article} at {dist:.1f} meters {position}")
             else:
-                parts.append(f"{article} {label} at {dist:.1f} meters {position}")
+                parts.append(f"{article} at {dist:.1f} meters {position}")
 
         return ", ".join(parts) + "."
+
     def speak_async(self, text: str):
         """Add text to TTS queue"""
         if text and not self.is_speaking():
@@ -193,20 +192,21 @@ class VisionAssistant:
         self.tts_worker.stop()
         self.tts_worker.join()
 
+
 def main():
     config = AppConfig()
 
-    # Check if models exist
-    for path in [config.vision.main_model_path, config.vision.architectural_model_path]:
-        if not os.path.exists(path):
-            logger.error(f"Model file not found: {path}")
-            return
+    # Check if model exists (only need to check one model now)
+    if not os.path.exists(config.vision.main_model_path):
+        logger.error(f"Model file not found: {config.vision.main_model_path}")
+        return
 
     try:
         assistant = VisionAssistant(config)
         assistant.run()
     except Exception as e:
         logger.exception(f"Fatal error: {e}")
+
 
 if __name__ == "__main__":
     main()
