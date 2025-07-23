@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  vision-ai-server:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - HOST=0.0.0.0
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # Mount models directory if you want to update models without rebuilding
+      - ./models:/app/models
+      # Mount config if you want to modify configuration
+      - ./config.py:/app/config.py
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  # Optional: Add nginx reverse proxy for production
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - vision-ai-server
+    restart: unless-stopped
+    profiles:
+      - production

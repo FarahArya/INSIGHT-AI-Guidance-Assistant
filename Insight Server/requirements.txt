@@ -1,0 +1,37 @@
+# 1. Add this to your requirements.txt file:
+# Web framework
+Flask==2.3.3
+Werkzeug==2.3.7
+flask-cors==4.0.0
+
+# Computer Vision
+opencv-python==4.8.1.78
+opencv-contrib-python==4.8.1.78
+numpy==1.26.4  # Explicitly pinning to a 1.x version for OpenCV compatibility
+Pillow==10.0.1
+
+# AI/ML Libraries
+torch==2.2.0
+torchvision==0.17.0
+torchaudio==2.2.0
+ultralytics==8.0.20
+onnx==1.14.1
+onnxruntime==1.16.1
+
+# HTTP requests
+requests==2.31.0
+
+# Configuration and utilities
+PyYAML==6.0.1
+python-dotenv==1.0.0
+
+# Logging and monitoring
+gunicorn==21.2.0
+
+# Additional dependencies
+matplotlib==3.10.0
+tqdm==4.67.1
+seaborn==0.13.2
+
+# Optional: For better performance
+psutil==5.9.6
