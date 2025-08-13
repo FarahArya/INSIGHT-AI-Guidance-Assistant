@@ -1,14 +1,18 @@
-# vision/processor.py - Modified version
-from typing import List, Tuple, Optional
-from .distance import DistanceEstimator, PositionInfo
-from .models import DualModelManager
-from .unknown_detector import UnknownObjectDetector
+# processor.py
+
+from typing import List, Tuple, Any
 import logging
+
+from .distance import DistanceEstimator
+from .models import SingleModelManager, ModelInfo
+from .unknown_detector import UnknownObjectDetector
 
 logger = logging.getLogger(__name__)
 
 class FrameProcessor:
-    def __init__(self, model_manager: DualModelManager, distance_estimator: DistanceEstimator):
+    def __init__(self,
+                 model_manager: SingleModelManager,
+                 distance_estimator: DistanceEstimator):
         self.model_manager = model_manager
         self.distance_estimator = distance_estimator
 
@@ -21,13 +25,18 @@ class FrameProcessor:
             detection_frequency=4   # Only check every 4th frame
         )
 
-    def process(self, frame) -> Tuple[List[Tuple], Optional[str]]:
-        """Process frame and return detected objects with unknown object detection"""
-        results, model_info = self.model_manager.detect(frame)
-        objects = []
-        known_boxes = []  # Track known object locations
+    def process(self, frame) -> Tuple[List[Tuple[float, str, Any, str]], ModelInfo]:
+        """
+        Process a single frame and return:
+          - objects: List of (distance, label, box_or_None, position_str)
+          - model_info: the ModelInfo from the detection call
+        """
+        # 1. Run the YOLO detection
+        results, model_info = self.model_manager.detect(frame, conf_threshold=0.35)
+        objects: List[Tuple[float, str, Any, str]] = []
+        known_boxes: List[Tuple[int, int, int, int]] = []
 
-        # Process known objects first
+        # 2. Process known objects
         for box in results.boxes:
             label = model_info.labels[int(box.cls[0])]
             distance = self.distance_estimator.estimate_distance(
@@ -37,7 +46,6 @@ class FrameProcessor:
                 box, frame.shape[1], frame.shape[0]
             )
 
-            # Store known object info
             x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
             known_boxes.append((int(x1), int(y1), int(x2), int(y2)))
 
@@ -48,28 +56,25 @@ class FrameProcessor:
                 pos_info.combined
             ))
 
-        # Detect unknown objects (only if not too many known objects to keep performance good)
-        if len(objects) < 5:  # Conservative limit
+        # 3. Detect unknown objects if there aren't too many known ones
+        if len(objects) < 5:
             try:
                 unknown_objects = self.unknown_detector.detect_unknown_objects(frame, known_boxes)
-
-                # Add unknown objects to results
-                for unknown_obj in unknown_objects:
-                    # Only add if reasonably close (within 8 meters)
-                    if unknown_obj.estimated_distance <= 8.0:
+                for unk in unknown_objects:
+                    if unk.estimated_distance <= 8.0:
                         objects.append((
-                            unknown_obj.estimated_distance,
-                            "unknown object",  # Generic label
-                            None,  # No YOLO box
-                            unknown_obj.position
+                            unk.estimated_distance,
+                            "unknown object",
+                            None,
+                            unk.position
                         ))
-
             except Exception as e:
                 logger.warning(f"Unknown object detection failed: {e}")
 
-        # Check if we should switch models for next detection
-        model_switched = self.model_manager.should_switch()
-        model_type = model_info.model_type if model_switched else None
+        logger.debug(
+            f"Detected {len(objects)} objects "
+            f"({len([o for o in objects if o[1] == 'unknown object'])} unknown)"
+        )
 
-        logger.debug(f"Detected {len(objects)} objects ({len([o for o in objects if o[1] == 'unknown object'])} unknown) with {model_info.model_type} model")
-        return objects, model_type
+        # 4. Return both objects list and model_info so callers can unpack correctly
+        return objects, model_info
